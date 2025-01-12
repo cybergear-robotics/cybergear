@@ -11,10 +11,11 @@
 
 typedef struct
 {
-    float position;
-    float speed;
-    float torque;
-    uint16_t temperature;
+    float position; /* 4π to 4π */
+    float speed; /* -30 rad/s to 30 rad/s */
+    float torque; /* -12Nm to 12Nm */
+    float temperature; /* 0..200 °C */
+    cybergear_state_e state;
 } cybergear_status_t;
 
 typedef struct
@@ -28,7 +29,7 @@ typedef struct
 
 typedef struct
 {
-    uint8_t overload;
+    bool overload;
     bool uncalibrated;
     bool over_current_phase_a;
     bool over_current_phase_b;
@@ -37,6 +38,8 @@ typedef struct
     bool under_voltage;
     bool driver_chip;
     bool over_temperature;
+    bool magnetic_code_failure;
+    bool hall_coded_faults;
 } cybergear_fault_t;
 
 typedef struct
@@ -67,9 +70,13 @@ typedef struct
     uint8_t master_can_id;
     uint8_t can_id;
     TickType_t transmit_ticks_to_wait;
-    cybergear_params_t params;
-    cybergear_fault_t fault;
+    cybergear_params_t params;    
     cybergear_status_t status;
+    union {
+        cybergear_fault_t fault_bits;
+        uint16_t fault_bitmask;
+    } faults;
+    
 } cybergear_motor_t;
 
 esp_err_t cybergear_init(cybergear_motor_t *motor, uint8_t master_can_id, uint8_t can_id, TickType_t transmit_ticks_to_wait);
@@ -107,7 +114,10 @@ esp_err_t cybergear_set_position(cybergear_motor_t *motor, float position);
 /* speed mode */
 esp_err_t cybergear_set_speed_kp(cybergear_motor_t *motor, float kp);
 esp_err_t cybergear_set_speed_ki(cybergear_motor_t *motor, float ki);
-esp_err_t cybergear_speed(cybergear_motor_t *motor, float speed);
+esp_err_t cybergear_set_speed(cybergear_motor_t *motor, float speed);
 
+void cybergear_get_status(cybergear_motor_t *motor, cybergear_status_t *status);
+void cybergear_get_faults(cybergear_motor_t *motor, cybergear_fault_t *faults);
+bool cybergear_has_faults(cybergear_motor_t *motor);
 
 #endif

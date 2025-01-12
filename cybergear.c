@@ -1,10 +1,6 @@
 #include <string.h>
-
 #include "driver/twai.h"
-
 #include "cybergear.h"
-
-
 
 esp_err_t _send_can_package(cybergear_motor_t *motor, uint8_t cmd_id, uint8_t len, uint8_t* data);
 esp_err_t _send_can_option_package(cybergear_motor_t *motor, uint8_t cmd_id, uint8_t option, uint8_t len, uint8_t* data);
@@ -19,6 +15,7 @@ esp_err_t cybergear_init(cybergear_motor_t *motor, uint8_t master_can_id, uint8_
     motor->master_can_id = master_can_id;
     motor->can_id = can_id;
     motor->transmit_ticks_to_wait = transmit_ticks_to_wait;
+    motor->faults.fault_bitmask = 0; /* reset faults */
     return ESP_OK;
 }
 
@@ -178,9 +175,24 @@ esp_err_t cybergear_set_speed_ki(cybergear_motor_t *motor, float ki)
     return _send_can_float_package(motor, ADDR_SPEED_KI, ki, KI_MIN, KI_MAX);
 }
 
-esp_err_t cybergear_speed(cybergear_motor_t *motor, float speed)
+esp_err_t cybergear_set_speed(cybergear_motor_t *motor, float speed)
 {
     return _send_can_float_package(motor, ADDR_SPEED_REF, speed, V_MIN, V_MAX);
+}
+
+void cybergear_get_status(cybergear_motor_t *motor, cybergear_status_t *status)
+{
+    memcpy(status, &motor->status, sizeof(cybergear_status_t));
+}
+
+void cybergear_get_faults(cybergear_motor_t *motor, cybergear_fault_t *faults)
+{
+    memcpy(faults, &motor->faults.fault_bits, sizeof(cybergear_fault_t));
+}
+
+bool cybergear_has_faults(cybergear_motor_t *motor)
+{
+    return motor->faults.fault_bitmask > 0;
 }
 
 esp_err_t _send_can_package(cybergear_motor_t *motor, uint8_t cmd_id, uint8_t len, uint8_t* data)
@@ -208,8 +220,7 @@ esp_err_t _send_can_float_package(cybergear_motor_t *motor, uint16_t addr, float
     data[0] = addr & 0x00FF;
     data[1] = addr >> 8;
 
-    float val = (max < value) ? max : value; // TODO fix me
-    val = (min > value) ? min : value;
+    float val = (min > value) ? min : value;
     memcpy(&data[4], &value, 4);
     return _send_can_package(motor, CMD_RAM_WRITE, 8, data);
 }
@@ -233,28 +244,37 @@ float _uint_to_float(uint16_t x, float x_min, float x_max)
 
 esp_err_t _process_motor_message(cybergear_motor_t *motor, twai_message_t *message)
 {
+    esp_err_t err = ESP_OK;
     uint16_t raw_position = message->data[1] | message->data[0] << 8;
     uint16_t raw_speed = message->data[3] | message->data[2] << 8;
     uint16_t raw_torque = message->data[5] | message->data[4] << 8;
     uint16_t raw_temperature = message->data[7] | message->data[6] << 8;
-
+    uint16_t run_mode = (message->identifier & 0xC00000) >> 22;
+    switch(run_mode) {
+        case 0x0:
+            motor->status.state = CYBERGEAR_STATE_RESET;
+            break;
+        case 0x1:
+            motor->status.state = CYBERGEAR_STATE_CALIBRATION;
+            break;
+        case 0x2:
+            motor->status.state = CYBERGEAR_STATE_RUNNING;
+            break;
+        default: /* unknown run state */
+            err = ESP_ERR_INVALID_RESPONSE;
+            break;
+    }
     motor->status.position = _uint_to_float(raw_position, POS_MIN, POS_MAX);
     motor->status.speed = _uint_to_float(raw_speed, V_MIN, V_MAX);
     motor->status.torque = _uint_to_float(raw_torque, T_MIN, T_MAX);
-    motor->status.temperature = raw_temperature;
-    motor->fault.under_voltage = message->identifier & (1 << 16);
-    motor->fault.overload = message->identifier & (1 << 17);
-    motor->fault.over_temperature = message->identifier & (1 << 18);
-    // TODO
-    bool magnetic_code_failure = message->identifier & (1 << 19);
-    bool hall_coded_faults = message->identifier & (1 << 20);
-    motor->fault.uncalibrated = message->identifier & (1 << 21);
-    // TODO
-    // 0: RESET Mode
-    // 1: Calibration mode
-    // 2: RUNNING mode
-    motor->params.run_mode = (message->identifier & 0xC00000) >> 22;
-    return ESP_OK;
+    motor->status.temperature = ((float) raw_temperature)/10;
+    motor->faults.fault_bits.under_voltage = message->identifier & (1 << 16);
+    motor->faults.fault_bits.overload = message->identifier & (1 << 17);
+    motor->faults.fault_bits.over_temperature = message->identifier & (1 << 18);
+    motor->faults.fault_bits.magnetic_code_failure = message->identifier & (1 << 19);
+    motor->faults.fault_bits.hall_coded_faults = message->identifier & (1 << 20);
+    motor->faults.fault_bits.uncalibrated = message->identifier & (1 << 21);
+    return err;
 }
 
 esp_err_t _process_fault_message(cybergear_motor_t *motor, twai_message_t *message)
@@ -267,15 +287,15 @@ esp_err_t _process_fault_message(cybergear_motor_t *motor, twai_message_t *messa
                        message->data[5] << 16 | 
                        message->data[6] << 8  | 
                        message->data[7];
-    motor->fault.over_current_phase_a = fault & (1 << 16);
-    motor->fault.overload = 0; // TODO: fault[8:15]
-    motor->fault.uncalibrated = fault & (1 << 7);    
-    motor->fault.over_current_phase_c = fault & (1 << 5);
-    motor->fault.over_current_phase_b = fault & (1 << 4);
-    motor->fault.over_voltage = fault & (1 << 3);
-    motor->fault.under_voltage = fault & (1 << 2);
-    motor->fault.driver_chip = fault & (1 << 1);
-    motor->fault.over_temperature = warning & (1 << 0);
+    motor->faults.fault_bits.over_current_phase_a = fault & (1 << 16);
+    //motor->fault.overload = 0; // TODO: fault[8:15]
+    motor->faults.fault_bits.uncalibrated = fault & (1 << 7);    
+    motor->faults.fault_bits.over_current_phase_c = fault & (1 << 5);
+    motor->faults.fault_bits.over_current_phase_b = fault & (1 << 4);
+    motor->faults.fault_bits.over_voltage = fault & (1 << 3);
+    motor->faults.fault_bits.under_voltage = fault & (1 << 2);
+    motor->faults.fault_bits.driver_chip = fault & (1 << 1);
+        motor->faults.fault_bits.over_temperature = warning & (1 << 0);
     return ESP_OK;
 }
 
@@ -355,3 +375,4 @@ esp_err_t _process_param_message(cybergear_motor_t *motor, twai_message_t *messa
     motor->params.updated = true;
     return ESP_OK;
 }
+

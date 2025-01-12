@@ -11,6 +11,7 @@
 #include "driver/twai.h"
 
 #include "cybergear.h"
+#include "cybergear_utils.h"
 
 #define TAG "position_test"
 
@@ -19,7 +20,7 @@
 		TWAI_ALERT_TX_FAILED | TWAI_ALERT_ERR_PASS | \
 		TWAI_ALERT_BUS_ERROR )
 
-#define POLLING_RATE_TICKS pdMS_TO_TICKS(100)
+#define POLLING_RATE_TICKS pdMS_TO_TICKS(500)
 
 void app_main(void)
 {
@@ -49,36 +50,48 @@ void app_main(void)
 	uint32_t alerts_triggered;
 	twai_status_info_t twai_status;
 	twai_message_t message;
-	while(1) {
+	cybergear_status_t status;
+	while(1)
+	{
 		/* request status */
 		cybergear_request_status(&cybergear_motor);
 
 		/* handle CAN alerts */ 
 		twai_read_alerts(&alerts_triggered, POLLING_RATE_TICKS);
 		twai_get_status_info(&twai_status);
-		if (alerts_triggered & TWAI_ALERT_ERR_PASS) {
+		if (alerts_triggered & TWAI_ALERT_ERR_PASS)
+		{
 			ESP_LOGE(TAG, "Alert: TWAI controller has become error passive.");
 		}
-		if (alerts_triggered & TWAI_ALERT_BUS_ERROR) {
+		if (alerts_triggered & TWAI_ALERT_BUS_ERROR)
+		{
 			ESP_LOGE(TAG, "Alert: A (Bit, Stuff, CRC, Form, ACK) error has occurred on the bus.");
 			ESP_LOGE(TAG, "Bus error count: %lu\n", twai_status.bus_error_count);
 		}
-		if (alerts_triggered & TWAI_ALERT_TX_FAILED) {
+		if (alerts_triggered & TWAI_ALERT_TX_FAILED)
+		{
 			ESP_LOGE(TAG, "Alert: The Transmission failed.");
 			ESP_LOGE(TAG, "TX buffered: %lu\t", twai_status.msgs_to_tx);
 			ESP_LOGE(TAG, "TX error: %lu\t", twai_status.tx_error_counter);
 			ESP_LOGE(TAG, "TX failed: %lu\n", twai_status.tx_failed_count);
 		}
 		/* handle received messages */
-		if (alerts_triggered & TWAI_ALERT_RX_DATA) {
-			while (twai_receive(&message, 0) == ESP_OK) {
+		if (alerts_triggered & TWAI_ALERT_RX_DATA) 
+		{
+			while (twai_receive(&message, 0) == ESP_OK)
+			{
 				cybergear_process_message(&cybergear_motor, &message);
 			}
-			ESP_LOGI(TAG, "Temp: %d Mode: %d Pos: %f", 
-				cybergear_motor.status.temperature, 
-				cybergear_motor.params.run_mode,
-				cybergear_motor.status.position
-			);
+			/* get cybergear status*/
+			cybergear_get_status(&cybergear_motor, &status);
+			cybergear_print_status(&status);
+			/* get cybergear faults */
+			if(cybergear_has_faults(&cybergear_motor))
+			{
+				cybergear_fault_t faults;
+				cybergear_get_faults(&cybergear_motor, &faults);
+				cybergear_print_faults(&faults);
+			}
 		}
 	}
 }

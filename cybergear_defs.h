@@ -37,20 +37,6 @@
 #define ADDR_SPD_KP 0x701F
 #define ADDR_SPD_KI 0x7020
 
-
-typedef enum
-{
-    CYBERGEAR_MODE_MOTION  = 0x00,
-    CYBERGEAR_MODE_POSITION = 0x01,
-    CYBERGEAR_MODE_SPEED = 0x02,
-    CYBERGEAR_MODE_CURRENT = 0x03
-} cybergear_mode_e;
-/*
-#define MODE_MOTION                  0x00
-#define MODE_POSITION                0x01
-#define MODE_SPEED                   0x02
-#define MODE_CURRENT                 0x03
-*/
 #define POS_MIN                   -12.5f
 #define POS_MAX                    12.5f
 #define V_MIN                     -30.0f
@@ -73,5 +59,19 @@ typedef enum
 #define RET_CYBERGEAR_INVALID_CAN_ID  0x02
 #define RET_CYBERGEAR_INVALID_PACKET  0x03
 
+typedef enum
+{
+    CYBERGEAR_MODE_MOTION  = 0x00,
+    CYBERGEAR_MODE_POSITION = 0x01,
+    CYBERGEAR_MODE_SPEED = 0x02,
+    CYBERGEAR_MODE_CURRENT = 0x03
+} cybergear_mode_e;
+
+typedef enum
+{
+    CYBERGEAR_STATE_RESET = 0x00,
+    CYBERGEAR_STATE_CALIBRATION = 0x01,
+    CYBERGEAR_STATE_RUNNING = 0x02,
+} cybergear_state_e;
 
 #endif // !CYBERGEAR_DEFS_H

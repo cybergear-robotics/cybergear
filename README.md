@@ -5,6 +5,29 @@ order to communicate with Xiamoi CyberGear motors. It bases on the library
 [Xiaomi_CyberGear_Arduino](https://github.com/DanielKalicki/Xiaomi_CyberGear_Arduino) 
 and is ported for ESP-IDF.
 
+# Safety
+
+This library does not use error logs/prints, but instead every internal error is 
+passed through. Therefore each relevant function returns `esp_err_t`, which should
+be interpreted. During development `ESP_ERROR_CHECK(...)` helps, but due to the strength
+of these motors, an error should be resolved or the motors should be stopped by an 
+external emergency mechanism.
+
+Pay attention: The motor provides a list of faults. These are not tested yet and the code is beta.
+Following lists the faults and whether a fault was already correctly tested:
+
+* [ ] `overload`
+* [ ] `uncalibrated`
+* [ ] `over_current_phase_a`
+* [ ] `over_current_phase_b`
+* [ ] `over_current_phase_c`
+* [ ] `over_voltage`
+* [ ] `under_voltage`
+* [ ] `driver_chip`
+* [ ] `over_temperature`
+* [ ] `magnetic_code_failure`
+* [ ] `hall_coded_faults`
+
 
 # Example
 
