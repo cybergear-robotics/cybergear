@@ -1,0 +1,27 @@
+menu "CyberGear Example"
+
+    config CYBERGEAR_CAN_TX
+        int "CAN TX"
+        default 36
+        help
+            GPIO number for CAN TX line.
+
+    config CYBERGEAR_CAN_RX
+        int "CAN RC"
+        default 35
+        help
+            GPIO number for CAN RX line.
+
+    config CYBERGEAR_MASTER_CAN_ID
+        int "Master CAN ID"
+        default 0
+        help
+            CAN ID of the ESP32
+
+    config CYBERGEAR_MOTOR_CAN_ID
+        int "CyberGear CAN ID"
+        default 1
+        help
+            CAN ID of the CyberGear motor
+
+endmenu
