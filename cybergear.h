@@ -66,12 +66,13 @@ typedef struct
 {
     uint8_t master_can_id;
     uint8_t can_id;
+    TickType_t transmit_ticks_to_wait;
     cybergear_params_t params;
     cybergear_fault_t fault;
     cybergear_status_t status;
 } cybergear_motor_t;
 
-esp_err_t cybergear_init(cybergear_motor_t *motor, uint8_t master_can_id, uint8_t can_id);
+esp_err_t cybergear_init(cybergear_motor_t *motor, uint8_t master_can_id, uint8_t can_id, TickType_t transmit_ticks_to_wait);
 
 esp_err_t cybergear_enable(cybergear_motor_t *motor);
 esp_err_t cybergear_stop(cybergear_motor_t *motor);

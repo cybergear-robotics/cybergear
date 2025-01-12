@@ -19,7 +19,7 @@
 		TWAI_ALERT_TX_FAILED | TWAI_ALERT_ERR_PASS | \
 		TWAI_ALERT_BUS_ERROR )
 
-#define POLLING_RATE_MS 100
+#define POLLING_RATE_TICKS pdMS_TO_TICKS(100)
 
 void app_main(void)
 {
@@ -38,7 +38,7 @@ void app_main(void)
 	
 	/* initialize cybergear motor */
 	cybergear_motor_t cybergear_motor;
-	cybergear_init(&cybergear_motor, CONFIG_CYBERGEAR_MASTER_CAN_ID, CONFIG_CYBERGEAR_MOTOR_CAN_ID);
+	cybergear_init(&cybergear_motor, CONFIG_CYBERGEAR_MASTER_CAN_ID, CONFIG_CYBERGEAR_MOTOR_CAN_ID, POLLING_RATE_TICKS);
 	ESP_ERROR_CHECK(cybergear_stop(&cybergear_motor));
 	cybergear_set_mode(&cybergear_motor, CYBERGEAR_MODE_POSITION);
 	cybergear_set_limit_speed(&cybergear_motor, 3.0f);
@@ -54,7 +54,7 @@ void app_main(void)
 		cybergear_request_status(&cybergear_motor);
 
 		/* handle CAN alerts */ 
-		twai_read_alerts(&alerts_triggered, pdMS_TO_TICKS(POLLING_RATE_MS));
+		twai_read_alerts(&alerts_triggered, POLLING_RATE_TICKS);
 		twai_get_status_info(&twai_status);
 		if (alerts_triggered & TWAI_ALERT_ERR_PASS) {
 			ESP_LOGE(TAG, "Alert: TWAI controller has become error passive.");

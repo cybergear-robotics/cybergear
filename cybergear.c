@@ -15,9 +15,10 @@ esp_err_t _process_motor_message(cybergear_motor_t *motor, twai_message_t *messa
 esp_err_t _process_fault_message(cybergear_motor_t *motor, twai_message_t *message);
 esp_err_t _process_param_message(cybergear_motor_t *motor, twai_message_t *message);
 
-esp_err_t cybergear_init(cybergear_motor_t *motor, uint8_t master_can_id, uint8_t can_id) {
+esp_err_t cybergear_init(cybergear_motor_t *motor, uint8_t master_can_id, uint8_t can_id, TickType_t transmit_ticks_to_wait) {
     motor->master_can_id = master_can_id;
     motor->can_id = can_id;
+    motor->transmit_ticks_to_wait = transmit_ticks_to_wait;
     return ESP_OK;
 }
 
@@ -198,7 +199,7 @@ esp_err_t _send_can_option_package(cybergear_motor_t *motor, uint8_t cmd_id, uin
     for (int i = 0; i < len; i++) {
         message.data[i] = data[i];
     }
-    return twai_transmit(&message, pdMS_TO_TICKS(1000)); // TODO refactor to timeout parameter
+    return twai_transmit(&message, motor->transmit_ticks_to_wait);
 }
 
 esp_err_t _send_can_float_package(cybergear_motor_t *motor, uint16_t addr, float value, float min, float max)
