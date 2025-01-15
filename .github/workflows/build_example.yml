@@ -1,0 +1,26 @@
+name: Build examples
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+jobs:
+  build-examples:
+    name: Build for ${{ matrix.idf_target }} on ${{ matrix.idf_ver }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        idf_ver: ["release-v5.2"]
+        idf_target: ["esp32s3"]
+        example_project: ["position_test"]
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+    - name: Build Examples
+      uses: espressif/esp-idf-ci-action@v1
+      with:
+        esp_idf_version: ${{ matrix.idf_ver }}
+        target: ${{ matrix.idf_target }}
+        path: examples/${{ matrix.example_project }}
