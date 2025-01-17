@@ -1,0 +1,23 @@
+description: Xiamoi CyberGear motor driver for TWAI
+
+url: https://github.com/cybergear-robotics/cybergear
+issues: https://github.com/cybergear-robotics/cybergear/issues
+repository: git@github.com:cybergear-robotics/cybergear.git
+license: "MIT"
+tags:
+    - cybergear
+    - xiamoi
+    - canbus
+    - twai
+maintainers:
+  - "Johannes Fischer"
+
+dependencies:
+  idf: ">=5.2"
+
+files:
+  exclude:
+    - "datasheet/"
+    - "datasheet/**/*"
+    - "docs/"
+    - "docs/**/*"
