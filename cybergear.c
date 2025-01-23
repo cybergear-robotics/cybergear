@@ -1,6 +1,11 @@
 #include <string.h>
+
 #include "driver/twai.h"
+#include "esp_err.h"
+
 #include "cybergear.h"
+
+#define RETURN_ON_ERROR(x) {esp_err_t rc = (x); if (rc != ESP_OK) { return rc; }};
 
 esp_err_t _send_can_package(cybergear_motor_t *motor, uint8_t cmd_id, uint8_t len, uint8_t* data);
 esp_err_t _send_can_option_package(cybergear_motor_t *motor, uint8_t cmd_id, uint8_t option, uint8_t len, uint8_t* data);
@@ -11,11 +16,19 @@ esp_err_t _process_motor_message(cybergear_motor_t *motor, twai_message_t *messa
 esp_err_t _process_fault_message(cybergear_motor_t *motor, twai_message_t *message);
 esp_err_t _process_param_message(cybergear_motor_t *motor, twai_message_t *message);
 
-esp_err_t cybergear_init(cybergear_motor_t *motor, uint8_t master_can_id, uint8_t can_id, TickType_t transmit_ticks_to_wait) {
-    motor->master_can_id = master_can_id;
-    motor->can_id = can_id;
-    motor->transmit_ticks_to_wait = transmit_ticks_to_wait;
+esp_err_t cybergear_init(cybergear_motor_t *motor, cybergear_config_t *config) {
+    motor->config = config;
     motor->faults.fault_bitmask = 0; /* reset faults */
+    
+    RETURN_ON_ERROR(cybergear_stop(motor));
+    RETURN_ON_ERROR(cybergear_set_mode(motor, config->mode));
+    RETURN_ON_ERROR(cybergear_set_limit_speed(motor, config->speed_limit));
+    RETURN_ON_ERROR(cybergear_set_limit_current(motor, config->current_limit));
+    RETURN_ON_ERROR(cybergear_set_limit_torque(motor, config->torque_limit));
+    if(config->enable_on_init)
+    {
+        RETURN_ON_ERROR(cybergear_enable(motor));
+    }
     return ESP_OK;
 }
 
@@ -51,11 +64,11 @@ esp_err_t cybergear_get_param(cybergear_motor_t *motor, uint16_t index)
 esp_err_t cybergear_set_motor_can_id(cybergear_motor_t *motor, uint8_t can_id)
 {
     uint8_t data[8] = {0x00};
-    uint16_t option = can_id << 8 | motor->master_can_id;
+    uint16_t option = can_id << 8 | motor->config->master_can_id;
     esp_err_t err = _send_can_option_package(motor, CMD_SET_CAN_ID, option, 8, data);
     if(err == ESP_OK)
     {
-        motor->can_id = can_id;
+        motor->config->can_id = can_id;
     }
     return err;    
 }
@@ -77,7 +90,7 @@ esp_err_t cybergear_process_message(cybergear_motor_t *motor, twai_message_t *me
 {
     uint8_t can_id = (message->identifier & 0xFF00) >> 8;
     uint8_t packet_type = (message->identifier & 0x3F000000) >> 24;
-    if(can_id != motor->can_id)
+    if(can_id != motor->config->can_id)
     {
         return ESP_ERR_NOT_FOUND;
     }
@@ -197,12 +210,12 @@ bool cybergear_has_faults(cybergear_motor_t *motor)
 
 esp_err_t _send_can_package(cybergear_motor_t *motor, uint8_t cmd_id, uint8_t len, uint8_t* data)
 {
-    return _send_can_option_package(motor, cmd_id, motor->master_can_id, len, data);
+    return _send_can_option_package(motor, cmd_id, motor->config->master_can_id, len, data);
 }
 
 esp_err_t _send_can_option_package(cybergear_motor_t *motor, uint8_t cmd_id, uint8_t option, uint8_t len, uint8_t* data)
 {
-    uint32_t id = cmd_id << 24 | option << 8 | motor->can_id;
+    uint32_t id = cmd_id << 24 | option << 8 | motor->config->can_id;
     
     twai_message_t message;
     message.extd = id;
@@ -211,7 +224,7 @@ esp_err_t _send_can_option_package(cybergear_motor_t *motor, uint8_t cmd_id, uin
     for (int i = 0; i < len; i++) {
         message.data[i] = data[i];
     }
-    return twai_transmit(&message, motor->transmit_ticks_to_wait);
+    return twai_transmit(&message, pdMS_TO_TICKS(motor->config->timeout_ms));
 }
 
 esp_err_t _send_can_float_package(cybergear_motor_t *motor, uint16_t addr, float value, float min, float max)
@@ -219,8 +232,9 @@ esp_err_t _send_can_float_package(cybergear_motor_t *motor, uint16_t addr, float
     uint8_t data[8] = {0x00};
     data[0] = addr & 0x00FF;
     data[1] = addr >> 8;
-
-    float val = (min > value) ? min : value;
+    
+    value = (max < value) ? max : value;
+    value = (min > value) ? min : value;
     memcpy(&data[4], &value, 4);
     return _send_can_package(motor, CMD_RAM_WRITE, 8, data);
 }

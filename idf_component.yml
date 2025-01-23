@@ -13,7 +13,7 @@ maintainers:
   - "Johannes Fischer"
 
 dependencies:
-  idf: ">=5.2"
+  idf: ">=5.0"
 
 files:
   exclude:

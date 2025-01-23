@@ -3,7 +3,7 @@
 [![Component Registry](https://components.espressif.com/components/cybergear-robotics/cybergear/badge.svg)](https://components.espressif.com/components/cybergear-robotics/cybergear)
 [![Examples build](https://github.com/cybergear-robotics/cybergear/actions/workflows/build_example.yml/badge.svg)](https://github.com/cybergear-robotics/cybergear/actions/workflows/build_example.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://GitHub.com/Naereen/StrapDown.js/graphs/commit-activity)
+[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://GitHub.com/Naereen/cybergear-robotics/cybergear/commit-activity)
 [![Framework](https://img.shields.io/badge/Framework-ESP_IDF-orange.svg)](https://shields.io/)
 [![Language](https://img.shields.io/badge/Language-C-purple.svg)](https://shields.io/)
 

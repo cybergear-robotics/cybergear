@@ -67,9 +67,19 @@ typedef struct
 
 typedef struct
 {
+    cybergear_mode_e mode;
     uint8_t master_can_id;
     uint8_t can_id;
-    TickType_t transmit_ticks_to_wait;
+    uint32_t timeout_ms;
+    float speed_limit;
+    float current_limit;
+    float torque_limit;
+    bool enable_on_init;
+} cybergear_config_t;
+
+typedef struct
+{
+    cybergear_config_t *config;
     cybergear_params_t params;    
     cybergear_status_t status;
     union {
@@ -79,7 +89,8 @@ typedef struct
     
 } cybergear_motor_t;
 
-esp_err_t cybergear_init(cybergear_motor_t *motor, uint8_t master_can_id, uint8_t can_id, TickType_t transmit_ticks_to_wait);
+
+esp_err_t cybergear_init(cybergear_motor_t *motor, cybergear_config_t *config);
 
 esp_err_t cybergear_enable(cybergear_motor_t *motor);
 esp_err_t cybergear_stop(cybergear_motor_t *motor);
