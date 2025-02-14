@@ -2,7 +2,7 @@
 
 #include "driver/twai.h"
 #include "esp_err.h"
-
+#include "esp_log.h"
 #include "cybergear.h"
 
 #define RETURN_ON_ERROR(x) {esp_err_t rc = (x); if (rc != ESP_OK) { return rc; }};
@@ -49,7 +49,7 @@ esp_err_t cybergear_set_mode(cybergear_motor_t *motor, cybergear_mode_e mode)
     uint8_t data[8] = {0x00};
     data[0] = ADDR_RUN_MODE & 0x00FF;
     data[1] = ADDR_RUN_MODE >> 8;
-    data[4] = mode;
+    data[4] = (uint8_t) mode;
     return _send_can_package(motor, CMD_RAM_WRITE, 8, data);
 }
 
@@ -216,7 +216,7 @@ esp_err_t _send_can_package(cybergear_motor_t *motor, uint8_t cmd_id, uint8_t le
 esp_err_t _send_can_option_package(cybergear_motor_t *motor, uint8_t cmd_id, uint8_t option, uint8_t len, uint8_t* data)
 {
     uint32_t id = cmd_id << 24 | option << 8 | motor->config->can_id;
-    
+    esp_err_t err;
     twai_message_t message;
     message.extd = id;
     message.identifier = id;
@@ -224,7 +224,9 @@ esp_err_t _send_can_option_package(cybergear_motor_t *motor, uint8_t cmd_id, uin
     for (int i = 0; i < len; i++) {
         message.data[i] = data[i];
     }
-    return twai_transmit(&message, pdMS_TO_TICKS(motor->config->timeout_ms));
+    err = twai_transmit(&message, pdMS_TO_TICKS(motor->config->timeout_ms));
+    vTaskDelay(pdMS_TO_TICKS(1));
+    return err;
 }
 
 esp_err_t _send_can_float_package(cybergear_motor_t *motor, uint16_t addr, float value, float min, float max)
@@ -293,23 +295,24 @@ esp_err_t _process_motor_message(cybergear_motor_t *motor, twai_message_t *messa
 
 esp_err_t _process_fault_message(cybergear_motor_t *motor, twai_message_t *message)
 {   
-    uint32_t fault = message->data[0] << 24 | 
-                     message->data[1] << 16 | 
-                     message->data[2] << 8  | 
-                     message->data[3];
-    uint32_t warning = message->data[4] << 24 | 
-                       message->data[5] << 16 | 
-                       message->data[6] << 8  | 
-                       message->data[7];
+    uint32_t fault = message->data[3] << 24 | 
+                     message->data[2] << 16 | 
+                     message->data[1] << 8  | 
+                     message->data[0];
+    uint32_t warning = message->data[7] << 24 | 
+                       message->data[6] << 16 | 
+                       message->data[5] << 8  | 
+                       message->data[4];
+    
     motor->faults.fault_bits.over_current_phase_a = fault & (1 << 16);
-    //motor->fault.overload = 0; // TODO: fault[8:15]
+    //motor->faults.overload = 0; // TODO: fault[8:15]
     motor->faults.fault_bits.uncalibrated = fault & (1 << 7);    
     motor->faults.fault_bits.over_current_phase_c = fault & (1 << 5);
     motor->faults.fault_bits.over_current_phase_b = fault & (1 << 4);
     motor->faults.fault_bits.over_voltage = fault & (1 << 3);
     motor->faults.fault_bits.under_voltage = fault & (1 << 2);
     motor->faults.fault_bits.driver_chip = fault & (1 << 1);
-        motor->faults.fault_bits.over_temperature = warning & (1 << 0);
+    motor->faults.fault_bits.over_temperature = warning & (1 << 0);
     return ESP_OK;
 }
 
