@@ -225,7 +225,6 @@ esp_err_t _send_can_option_package(cybergear_motor_t *motor, uint8_t cmd_id, uin
         message.data[i] = data[i];
     }
     err = twai_transmit(&message, pdMS_TO_TICKS(motor->config->timeout_ms));
-    vTaskDelay(pdMS_TO_TICKS(1));
     return err;
 }
 
