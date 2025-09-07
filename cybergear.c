@@ -218,7 +218,7 @@ esp_err_t _send_can_option_package(cybergear_motor_t *motor, uint8_t cmd_id, uin
     uint32_t id = cmd_id << 24 | option << 8 | motor->config->can_id;
     esp_err_t err;
     twai_message_t message;
-    message.extd = id;
+    message.extd = 1; // enable extended frame 
     message.identifier = id;
     message.data_length_code = len;
     for (int i = 0; i < len; i++) {
