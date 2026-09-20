@@ -3,9 +3,10 @@
 
 #include <unistd.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #include "esp_err.h"
-#include "driver/twai.h"
 
 #include "cybergear_defs.h"
 
@@ -67,10 +68,21 @@ typedef struct
 
 typedef struct
 {
+    uint32_t identifier;
+    const uint8_t *data;
+    size_t data_length;
+} cybergear_message_t;
+
+/* The callback must copy or transmit data before returning. */
+typedef esp_err_t (*cybergear_send_fn_t)(void *context, uint32_t identifier, const uint8_t *data, size_t data_length);
+
+typedef struct
+{
+    cybergear_send_fn_t send;
+    void *send_context;
     cybergear_mode_e mode;
     uint8_t master_can_id;
     uint8_t can_id;
-    uint32_t timeout_ms;
     float speed_limit;
     float current_limit;
     float torque_limit;
@@ -103,7 +115,7 @@ esp_err_t cybergear_set_motor_can_id(cybergear_motor_t *motor, uint8_t can_id);
 esp_err_t cybergear_set_mech_position_to_zero(cybergear_motor_t *motor);
 
 esp_err_t cybergear_request_status(cybergear_motor_t *motor);
-esp_err_t cybergear_process_message(cybergear_motor_t *motor, twai_message_t *message);
+esp_err_t cybergear_process_message(cybergear_motor_t *motor, const cybergear_message_t *message);
 
 esp_err_t cybergear_set_limit_speed(cybergear_motor_t *motor, float speed);
 esp_err_t cybergear_set_limit_current(cybergear_motor_t *motor, float current);

@@ -6,99 +6,104 @@
 #include "freertos/task.h"
 #include "freertos/timers.h"
 
-#include "esp_log.h"
 #include "esp_system.h"
-#include "driver/twai.h"
+#include "esp_twai.h"
+#include "esp_twai_onchip.h"
 
 #include "cybergear.h"
 #include "cybergear_utils.h"
 
-#define TAG "position_test"
-
-#define TWAI_ALERTS ( TWAI_ALERT_RX_DATA | \
-		TWAI_ALERT_TX_IDLE | TWAI_ALERT_TX_SUCCESS | \
-		TWAI_ALERT_TX_FAILED | TWAI_ALERT_ERR_PASS | \
-		TWAI_ALERT_BUS_ERROR )
-
 #define TWAI_TIMEOUT_MS 100
 #define POLLING_RATE_MS 100
-#define POLLING_RATE_TICKS pdMS_TO_TICKS(POLLING_RATE_MS)
+
+static esp_err_t cybergear_twai_send(void *context, uint32_t identifier, const uint8_t *data, size_t data_length)
+{
+	twai_node_handle_t node = context;
+	twai_frame_t frame = {
+		.header.id = identifier,
+		.header.ide = true,
+		.buffer = (uint8_t *)data,
+		.buffer_len = data_length,
+	};
+	esp_err_t err = twai_node_transmit(node, &frame, TWAI_TIMEOUT_MS);
+	if (err != ESP_OK) {
+		return err;
+	}
+	/* The CyberGear buffer is owned by the caller, so finish before returning. */
+	return twai_node_transmit_wait_all_done(node, TWAI_TIMEOUT_MS);
+}
+
+static bool twai_rx_done_cb(twai_node_handle_t node, const twai_rx_done_event_data_t *edata, void *user_ctx)
+{
+	uint8_t data[8];
+	twai_frame_t frame = {
+		.buffer = data,
+		.buffer_len = sizeof(data),
+	};
+	cybergear_motor_t *motor = user_ctx;
+
+	(void)edata;
+	if (twai_node_receive_from_isr(node, &frame) == ESP_OK && frame.header.dlc == sizeof(data)) {
+		cybergear_message_t message = {
+			.identifier = frame.header.id,
+			.data = data,
+			.data_length = frame.header.dlc,
+		};
+		cybergear_process_message(motor, &message);
+	}
+	return false;
+}
 
 void app_main(void)
 {
-    /* initialize configuration structures using macro initializers */
-    twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(
-		(gpio_num_t) CONFIG_CYBERGEAR_CAN_TX, 
-		(gpio_num_t) CONFIG_CYBERGEAR_CAN_RX, 
-		TWAI_MODE_NORMAL);
-    twai_timing_config_t t_config = TWAI_TIMING_CONFIG_1MBITS();
-    twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
-
-    /* install TWAI driver */
-    ESP_ERROR_CHECK(twai_driver_install(&g_config, &t_config, &f_config));
-    ESP_ERROR_CHECK(twai_start());
-    ESP_ERROR_CHECK(twai_reconfigure_alerts(TWAI_ALERTS, NULL));
-	
 	/* initialize cybergear motor */
 	cybergear_motor_t cybergear_motor;
 	cybergear_config_t cybergear_config = {
+		.send = cybergear_twai_send,
 		.mode = CYBERGEAR_MODE_POSITION,
 		.master_can_id = CONFIG_CYBERGEAR_MASTER_CAN_ID,
 		.can_id = CONFIG_CYBERGEAR_MOTOR_CAN_ID,
-		.timeout_ms = TWAI_TIMEOUT_MS,
 		.speed_limit = 3.0f,
 		.current_limit = 5.0f,
 		.torque_limit = 10.0f,
 		.enable_on_init = true,
 	};
+	twai_onchip_node_config_t node_config = {
+		.io_cfg.tx = (gpio_num_t)CONFIG_CYBERGEAR_CAN_TX,
+		.io_cfg.rx = (gpio_num_t)CONFIG_CYBERGEAR_CAN_RX,
+		.io_cfg.quanta_clk_out = -1,
+		.io_cfg.bus_off_indicator = -1,
+		.bit_timing.bitrate = 1000000,
+		.tx_queue_depth = 5,
+		.fail_retry_cnt = -1,
+	};
+	twai_event_callbacks_t callbacks = {
+		.on_rx_done = twai_rx_done_cb,
+	};
+	twai_node_handle_t node;
+
+	ESP_ERROR_CHECK(twai_new_node_onchip(&node_config, &node));
+	cybergear_config.send_context = node;
+	ESP_ERROR_CHECK(twai_node_register_event_callbacks(node, &callbacks, &cybergear_motor));
+	ESP_ERROR_CHECK(twai_node_enable(node));
 	ESP_ERROR_CHECK(cybergear_init(&cybergear_motor, &cybergear_config));
 	ESP_ERROR_CHECK(cybergear_set_position(&cybergear_motor, 10.0f));
 
-	uint32_t alerts_triggered;
-	twai_status_info_t twai_status;
-	twai_message_t message;
 	cybergear_status_t status;
 	while(1)
 	{
 		/* request status */
 		cybergear_request_status(&cybergear_motor);
-
-		/* handle CAN alerts */ 
-		twai_read_alerts(&alerts_triggered, POLLING_RATE_TICKS);
-		twai_get_status_info(&twai_status);
-		if (alerts_triggered & TWAI_ALERT_ERR_PASS)
+		vTaskDelay(pdMS_TO_TICKS(POLLING_RATE_MS));
+		/* Received frames are processed by twai_rx_done_cb. */
+		cybergear_get_status(&cybergear_motor, &status);
+		cybergear_print_status(&status);
+		/* get cybergear faults */
+		if(cybergear_has_faults(&cybergear_motor))
 		{
-			ESP_LOGE(TAG, "Alert: TWAI controller has become error passive.");
-		}
-		if (alerts_triggered & TWAI_ALERT_BUS_ERROR)
-		{
-			ESP_LOGE(TAG, "Alert: A (Bit, Stuff, CRC, Form, ACK) error has occurred on the bus.");
-			ESP_LOGE(TAG, "Bus error count: %lu\n", twai_status.bus_error_count);
-		}
-		if (alerts_triggered & TWAI_ALERT_TX_FAILED)
-		{
-			ESP_LOGE(TAG, "Alert: The Transmission failed.");
-			ESP_LOGE(TAG, "TX buffered: %lu\t", twai_status.msgs_to_tx);
-			ESP_LOGE(TAG, "TX error: %lu\t", twai_status.tx_error_counter);
-			ESP_LOGE(TAG, "TX failed: %lu\n", twai_status.tx_failed_count);
-		}
-		/* handle received messages */
-		if (alerts_triggered & TWAI_ALERT_RX_DATA) 
-		{
-			while (twai_receive(&message, 0) == ESP_OK)
-			{
-				cybergear_process_message(&cybergear_motor, &message);
-			}
-			/* get cybergear status*/
-			cybergear_get_status(&cybergear_motor, &status);
-			cybergear_print_status(&status);
-			/* get cybergear faults */
-			if(cybergear_has_faults(&cybergear_motor))
-			{
-				cybergear_fault_t faults;
-				cybergear_get_faults(&cybergear_motor, &faults);
-				cybergear_print_faults(&faults);
-			}
+			cybergear_fault_t faults;
+			cybergear_get_faults(&cybergear_motor, &faults);
+			cybergear_print_faults(&faults);
 		}
 	}
 }
