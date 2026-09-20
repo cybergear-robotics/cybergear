@@ -21,6 +21,8 @@
 		TWAI_ALERT_BUS_ERROR )
 
 #define TWAI_TIMEOUT_MS 100
+#define POLLING_RATE_MS 100
+#define POLLING_RATE_TICKS pdMS_TO_TICKS(POLLING_RATE_MS)
 
 void app_main(void)
 {
