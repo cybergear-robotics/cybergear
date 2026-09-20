@@ -57,6 +57,9 @@ idf.py add-dependency "cybergear-robotics/cybergear"
 
 ## Example
 
+`position_test` shows one CyberGear motor. `shared_bus_test` adds a reusable TWAI
+transport with an asynchronous TX frame pool and listener routing for additional CAN devices.
+
 1. create example project
 ```bash
 idf.py create-project-from-example "cybergear-robotics/cybergear:position_test"
