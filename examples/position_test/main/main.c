@@ -20,7 +20,7 @@
 		TWAI_ALERT_TX_FAILED | TWAI_ALERT_ERR_PASS | \
 		TWAI_ALERT_BUS_ERROR )
 
-#define POLLING_RATE_TICKS pdMS_TO_TICKS(500)
+#define TWAI_TIMEOUT_MS 100
 
 void app_main(void)
 {
@@ -39,13 +39,18 @@ void app_main(void)
 	
 	/* initialize cybergear motor */
 	cybergear_motor_t cybergear_motor;
-	cybergear_init(&cybergear_motor, CONFIG_CYBERGEAR_MASTER_CAN_ID, CONFIG_CYBERGEAR_MOTOR_CAN_ID, POLLING_RATE_TICKS);
-	ESP_ERROR_CHECK(cybergear_stop(&cybergear_motor));
-	cybergear_set_mode(&cybergear_motor, CYBERGEAR_MODE_POSITION);
-	cybergear_set_limit_speed(&cybergear_motor, 3.0f);
-	cybergear_set_limit_current(&cybergear_motor, 5.0f);
-	cybergear_enable(&cybergear_motor);
-	cybergear_set_position(&cybergear_motor, 10.0); 
+	cybergear_config_t cybergear_config = {
+		.mode = CYBERGEAR_MODE_POSITION,
+		.master_can_id = CONFIG_CYBERGEAR_MASTER_CAN_ID,
+		.can_id = CONFIG_CYBERGEAR_MOTOR_CAN_ID,
+		.timeout_ms = TWAI_TIMEOUT_MS,
+		.speed_limit = 3.0f,
+		.current_limit = 5.0f,
+		.torque_limit = 10.0f,
+		.enable_on_init = true,
+	};
+	ESP_ERROR_CHECK(cybergear_init(&cybergear_motor, &cybergear_config));
+	ESP_ERROR_CHECK(cybergear_set_position(&cybergear_motor, 10.0f));
 
 	uint32_t alerts_triggered;
 	twai_status_info_t twai_status;
