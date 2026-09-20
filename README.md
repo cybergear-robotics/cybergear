@@ -13,6 +13,11 @@ order to communicate with Xiamoi CyberGear motors. It bases on the library
 [Xiaomi_CyberGear_Arduino](https://github.com/DanielKalicki/Xiaomi_CyberGear_Arduino)
 and is ported for ESP-IDF.
 
+The component is independent of the CAN driver. Configure `cybergear_config_t::send`
+with an adapter that sends one extended CAN frame; `send_context` is passed through to
+that adapter. Incoming frames are routed by the application and passed to
+`cybergear_process_message()` as `cybergear_message_t`.
+
 ## Safety
 
 This library does not use error logs/prints, but instead every internal error is
@@ -77,14 +82,18 @@ The fault disappears after a power-cut.
 
 ### What if motor does not react to sent commands?
 
-Register a subscription for `TWAI_ALERT_TX_FAILED` errors. THese are fired whenever a
-message could not be sent. These can have multiple reasons:
+Register an `on_error` callback with `twai_node_register_event_callbacks()` to observe
+transmission failures. These can have multiple reasons:
 
 1. Too many messages are sent and the CAN TX Queue is to small. It helps to increase the
    queue length:
    ```
-   twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(TX, RX, TWAI_MODE_NORMAL);
-   g_config.tx_queue_len = 50;
+    twai_onchip_node_config_t node_config = {
+        .io_cfg.tx = TX,
+        .io_cfg.rx = RX,
+        .bit_timing.bitrate = 1000000,
+        .tx_queue_depth = 50,
+    };
    ```
 
 2. It seems that some other task (interupt handler, maybe?) needs to run sometimes in order

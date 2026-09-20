@@ -1,8 +1,6 @@
 #include <string.h>
 
-#include "driver/twai.h"
 #include "esp_err.h"
-#include "esp_log.h"
 #include "cybergear.h"
 
 #define RETURN_ON_ERROR(x) {esp_err_t rc = (x); if (rc != ESP_OK) { return rc; }};
@@ -12,9 +10,9 @@ esp_err_t _send_can_option_package(cybergear_motor_t *motor, uint8_t cmd_id, uin
 esp_err_t _send_can_float_package(cybergear_motor_t *motor, uint16_t addr, float value, float min, float max);
 uint16_t _float_to_uint(float x, float x_min, float x_max, int bits);
 float _uint_to_float(uint16_t x, float x_min, float x_max);
-esp_err_t _process_motor_message(cybergear_motor_t *motor, twai_message_t *message);
-esp_err_t _process_fault_message(cybergear_motor_t *motor, twai_message_t *message);
-esp_err_t _process_param_message(cybergear_motor_t *motor, twai_message_t *message);
+esp_err_t _process_motor_message(cybergear_motor_t *motor, const cybergear_message_t *message);
+esp_err_t _process_fault_message(cybergear_motor_t *motor, const cybergear_message_t *message);
+esp_err_t _process_param_message(cybergear_motor_t *motor, const cybergear_message_t *message);
 
 esp_err_t cybergear_init(cybergear_motor_t *motor, cybergear_config_t *config) {
     motor->config = config;
@@ -86,8 +84,11 @@ esp_err_t cybergear_request_status(cybergear_motor_t *motor)
     return _send_can_package(motor, CMD_GET_STATUS, 8, data);
 }
 
-esp_err_t cybergear_process_message(cybergear_motor_t *motor, twai_message_t *message)
+esp_err_t cybergear_process_message(cybergear_motor_t *motor, const cybergear_message_t *message)
 {
+    if (message->data_length != 8) {
+        return ESP_ERR_INVALID_SIZE;
+    }
     uint8_t can_id = (message->identifier & 0xFF00) >> 8;
     uint8_t packet_type = (message->identifier & 0x3F000000) >> 24;
     if(can_id != motor->config->can_id)
@@ -217,14 +218,10 @@ esp_err_t _send_can_option_package(cybergear_motor_t *motor, uint8_t cmd_id, uin
 {
     uint32_t id = cmd_id << 24 | option << 8 | motor->config->can_id;
     esp_err_t err;
-    twai_message_t message;
-    message.extd = 1; // enable extended frame 
-    message.identifier = id;
-    message.data_length_code = len;
-    for (int i = 0; i < len; i++) {
-        message.data[i] = data[i];
+    if (motor->config->send == NULL) {
+        return ESP_ERR_INVALID_STATE;
     }
-    err = twai_transmit(&message, pdMS_TO_TICKS(motor->config->timeout_ms));
+    err = motor->config->send(motor->config->send_context, id, data, len);
     return err;
 }
 
@@ -257,7 +254,7 @@ float _uint_to_float(uint16_t x, float x_min, float x_max)
     return (float) x / type_max * span + x_min;
 }
 
-esp_err_t _process_motor_message(cybergear_motor_t *motor, twai_message_t *message)
+esp_err_t _process_motor_message(cybergear_motor_t *motor, const cybergear_message_t *message)
 {
     esp_err_t err = ESP_OK;
     uint16_t raw_position = message->data[1] | message->data[0] << 8;
@@ -292,16 +289,16 @@ esp_err_t _process_motor_message(cybergear_motor_t *motor, twai_message_t *messa
     return err;
 }
 
-esp_err_t _process_fault_message(cybergear_motor_t *motor, twai_message_t *message)
+esp_err_t _process_fault_message(cybergear_motor_t *motor, const cybergear_message_t *message)
 {   
-    uint32_t fault = message->data[3] << 24 | 
-                     message->data[2] << 16 | 
-                     message->data[1] << 8  | 
+    uint32_t fault = message->data[3] << 24 |
+                     message->data[2] << 16 |
+                     message->data[1] << 8  |
                      message->data[0];
-    uint32_t warning = message->data[7] << 24 | 
-                       message->data[6] << 16 | 
-                       message->data[5] << 8  | 
-                       message->data[4];
+    uint32_t warning = message->data[7] << 24 |
+                     message->data[6] << 16 |
+                     message->data[5] << 8  |
+                     message->data[4];
     
     motor->faults.fault_bits.over_current_phase_a = fault & (1 << 16);
     //motor->faults.overload = 0; // TODO: fault[8:15]
@@ -315,7 +312,7 @@ esp_err_t _process_fault_message(cybergear_motor_t *motor, twai_message_t *messa
     return ESP_OK;
 }
 
-esp_err_t _process_param_message(cybergear_motor_t *motor, twai_message_t *message)
+esp_err_t _process_param_message(cybergear_motor_t *motor, const cybergear_message_t *message)
 {
     uint16_t index = message->data[1] << 8 | message->data[0];
 
@@ -391,4 +388,3 @@ esp_err_t _process_param_message(cybergear_motor_t *motor, twai_message_t *messa
     motor->params.updated = true;
     return ESP_OK;
 }
-
