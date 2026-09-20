@@ -7,7 +7,7 @@ menu "CyberGear Example"
             GPIO number for CAN TX line.
 
     config CYBERGEAR_CAN_RX
-        int "CAN RC"
+        int "CAN RX"
         default 35
         help
             GPIO number for CAN RX line.

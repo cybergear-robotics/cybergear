@@ -1,4 +1,4 @@
-#ifndef CYBERGEAR_UTILS_h
+#ifndef CYBERGEAR_UTILS_H
 #define CYBERGEAR_UTILS_H
 
 #include "cybergear.h"

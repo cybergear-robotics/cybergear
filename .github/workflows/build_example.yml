@@ -12,9 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        idf_ver: ["release-v5.2"]
+        idf_ver: ["release-v6.1"]
         idf_target: ["esp32s3"]
-        example_project: ["position_test"]
+        example_project: ["position_test", "shared_bus_test"]
     steps:
     - name: Checkout repo
       uses: actions/checkout@v4
