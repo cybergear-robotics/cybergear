@@ -15,6 +15,8 @@ esp_err_t _process_fault_message(cybergear_motor_t *motor, const cybergear_messa
 esp_err_t _process_param_message(cybergear_motor_t *motor, const cybergear_message_t *message);
 
 esp_err_t cybergear_init(cybergear_motor_t *motor, cybergear_config_t *config) {
+    memset(&motor->params, 0, sizeof(motor->params));
+    memset(&motor->status, 0, sizeof(motor->status));
     motor->config = config;
     motor->faults.fault_bitmask = 0; /* reset faults */
     
