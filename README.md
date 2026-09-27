@@ -8,10 +8,10 @@
 [![Language](https://img.shields.io/badge/Language-C-purple.svg)](https://shields.io/)
 
 
-This driver uses Espressif's TWAI (Two-Wire Automotive Interface) in
-order to communicate with Xiamoi CyberGear motors. It bases on the library
+This driver uses Espressif's TWAI (Two-Wire Automotive Interface) to
+communicate with Xiaomi CyberGear motors. It is based on the library
 [Xiaomi_CyberGear_Arduino](https://github.com/DanielKalicki/Xiaomi_CyberGear_Arduino)
-and is ported for ESP-IDF.
+and has been ported to ESP-IDF.
 
 The component is independent of the CAN driver. Configure `cybergear_config_t::send`
 with an adapter that sends one extended CAN frame; `send_context` is passed through to
@@ -20,18 +20,18 @@ that adapter. Incoming frames are routed by the application and passed to
 
 ## Safety
 
-This library does not use error logs/prints, but instead every internal error is
-passed through. Therefore each relevant function returns `esp_err_t`, which should
-be handled. During development `ESP_ERROR_CHECK(...)` helps, but due to the strength
-of these motors, an error should be resolved or the motors should be stopped by an
+This library does not log or print errors; instead, it propagates all internal errors.
+Consequently, every relevant function returns an `esp_err_t` value that should be
+handled. During development, `ESP_ERROR_CHECK(...)` is helpful. However, because
+these motors are powerful, errors should be resolved or the motors stopped by an
 external emergency mechanism.
 
 ## Faults & Warnings
 
 The motor provides a list of faults and warnings. If a fault is active, the
-motor will sends a fault feedback frame. As the implementaiton is not completly
-tested and not every fault occured yet, following list gives you a hint whether
-a fault was already correctly tested:
+motor sends a fault feedback frame. Since the implementation has not been fully
+tested and not every fault has occurred yet, the following list indicates whether
+a fault has been tested successfully:
 
 ### Faults
 * [ ] `overload`
@@ -50,41 +50,41 @@ a fault was already correctly tested:
 ### Warnings
 * [ ] `over_temperature`
 
-## Using component
+## Using the component
 ```bash
 idf.py add-dependency "cybergear-robotics/cybergear"
 ```
 
 ## Example
 
-1. create example project
+1. Create an example project.
 ```bash
 idf.py create-project-from-example "cybergear-robotics/cybergear:position_test"
 ```
-2. Go to to example directory (for example `position_test`)
+2. Go to the example directory, for example `position_test`.
    `cd position_test`
-3. Set ESP chip
+3. Set the ESP target.
    `idf.py set-target esp32`
-4. Configure CAN TX/RX in menu `CyberGear Example`.
+4. Configure CAN TX/RX in the `CyberGear Example` menu.
    `idf.py menuconfig`
-5. Build, flash
+5. Build, flash, and monitor the project.
    `idf.py build flash monitor`
 
 ## FAQ
 
 ### How to clear an alarm?
 
-If a fault occured, the alarm is cleared by the `cybergear_stop` command, which 
-correspond to the `CMD_RESET`.
+If a fault occurs, the alarm can be cleared with the `cybergear_stop` command,
+which corresponds to `CMD_RESET`.
 
 
-### What if motor does not react to sent commands?
+### What if the motor does not react to sent commands?
 
 Register an `on_error` callback with `twai_node_register_event_callbacks()` to observe
 transmission failures. These can have multiple reasons:
 
-1. Too many messages are sent and the CAN TX Queue is to small. It helps to increase the
-   queue length:
+1. Too many messages are being sent, and the CAN TX queue is too small. Increasing
+   the queue length may help:
    ```
     twai_onchip_node_config_t node_config = {
         .io_cfg.tx = TX,
@@ -94,8 +94,8 @@ transmission failures. These can have multiple reasons:
     };
    ```
 
-2. It seems that some other task (interupt handler, maybe?) needs to run sometimes in order
-   to keep CAN message to be sent. More investigation is required.
+2. Another task, possibly an interrupt handler, may need to run periodically for CAN
+   messages to continue being sent. This requires further investigation.
 
 ## Related projects
 
