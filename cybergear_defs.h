@@ -59,6 +59,7 @@
 #define RET_CYBERGEAR_INVALID_CAN_ID  0x02
 #define RET_CYBERGEAR_INVALID_PACKET  0x03
 
+/** @brief Supported motor control modes. */
 typedef enum
 {
     CYBERGEAR_MODE_MOTION  = 0x00,
@@ -67,6 +68,7 @@ typedef enum
     CYBERGEAR_MODE_CURRENT = 0x03
 } cybergear_mode_e;
 
+/** @brief Motor run states reported in status feedback. */
 typedef enum
 {
     CYBERGEAR_STATE_RESET = 0x00,
