@@ -23,6 +23,9 @@ esp_err_t cybergear_init(cybergear_motor_t *motor, cybergear_config_t *config) {
     if (motor == NULL || config == NULL) {
         return ESP_ERR_INVALID_ARG;
     }
+    if (config->send == NULL) {
+        return ESP_ERR_INVALID_STATE;
+    }
 
     memset(&motor->params, 0, sizeof(motor->params));
     memset(&motor->status, 0, sizeof(motor->status));
