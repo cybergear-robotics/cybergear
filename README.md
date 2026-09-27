@@ -39,8 +39,8 @@ a fault was already correctly tested:
 * [ ] `over_current_phase_a`
 * [ ] `over_current_phase_b`
 * [ ] `over_current_phase_c`
-* [x] `over_voltage` (0x4)
-* [ ] `under_voltage`
+* [x] `over_voltage`
+* [x] `under_voltage`
 * [ ] `driver_chip`
 * [ ] `over_temperature`
 * [ ] `magnetic_code_failure`
@@ -74,10 +74,8 @@ idf.py create-project-from-example "cybergear-robotics/cybergear:position_test"
 
 ### How to clear an alarm?
 
-If a fault occured, the alarm cannot be cleared by the `cybergear_stop` command, which 
-correspond to the `CMD_RESET`. I could not find a CAN command which cleares all alarms.
-The CyberGear Dongle Tool provides a `Clear ALarm` button. The button is not tested yet.
-The fault disappears after a power-cut.
+If a fault occured, the alarm is cleared by the `cybergear_stop` command, which 
+correspond to the `CMD_RESET`.
 
 
 ### What if motor does not react to sent commands?
