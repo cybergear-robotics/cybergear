@@ -126,13 +126,13 @@ void app_main(void)
 		cybergear_request_status(&cybergear_motor);
 		vTaskDelay(pdMS_TO_TICKS(POLLING_RATE_MS));
 		/* Received frames are processed by twai_rx_done_cb. */
-		cybergear_get_status(&cybergear_motor, &status);
+		ESP_ERROR_CHECK(cybergear_get_status(&cybergear_motor, &status));
 		cybergear_print_status(&status);
 		/* get cybergear faults */
 		if(cybergear_has_faults(&cybergear_motor))
 		{
 			cybergear_fault_t faults;
-			cybergear_get_faults(&cybergear_motor, &faults);
+			ESP_ERROR_CHECK(cybergear_get_faults(&cybergear_motor, &faults));
 			cybergear_print_faults(&faults);
 		}
 	}

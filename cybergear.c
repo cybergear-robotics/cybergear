@@ -14,7 +14,16 @@ esp_err_t _process_motor_message(cybergear_motor_t *motor, const cybergear_messa
 esp_err_t _process_fault_message(cybergear_motor_t *motor, const cybergear_message_t *message);
 esp_err_t _process_param_message(cybergear_motor_t *motor, const cybergear_message_t *message);
 
+static bool _is_valid_motor(const cybergear_motor_t *motor)
+{
+    return motor != NULL && motor->config != NULL;
+}
+
 esp_err_t cybergear_init(cybergear_motor_t *motor, cybergear_config_t *config) {
+    if (motor == NULL || config == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
     memset(&motor->params, 0, sizeof(motor->params));
     memset(&motor->status, 0, sizeof(motor->status));
     motor->config = config;
@@ -56,6 +65,10 @@ esp_err_t cybergear_set_mode(cybergear_motor_t *motor, cybergear_mode_e mode)
 
 esp_err_t cybergear_get_param(cybergear_motor_t *motor, uint16_t index)
 {
+    if (!_is_valid_motor(motor)) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
     motor->params.updated = false;
     uint8_t data[8] = {0x00};
     memcpy(&data[0], &index, 2);
@@ -64,6 +77,10 @@ esp_err_t cybergear_get_param(cybergear_motor_t *motor, uint16_t index)
 
 esp_err_t cybergear_set_motor_can_id(cybergear_motor_t *motor, uint8_t can_id)
 {
+    if (!_is_valid_motor(motor)) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
     uint8_t data[8] = {0x00};
     uint16_t option = can_id << 8 | motor->config->master_can_id;
     esp_err_t err = _send_can_option_package(motor, CMD_SET_CAN_ID, option, 8, data);
@@ -89,6 +106,10 @@ esp_err_t cybergear_request_status(cybergear_motor_t *motor)
 
 esp_err_t cybergear_process_message(cybergear_motor_t *motor, const cybergear_message_t *message)
 {
+    if (!_is_valid_motor(motor) || message == NULL || message->data == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
     if (message->data_length != 8) {
         return ESP_ERR_INVALID_SIZE;
     }
@@ -129,6 +150,10 @@ esp_err_t cybergear_set_limit_torque(cybergear_motor_t *motor, float torque)
 
 esp_err_t cybergear_set_motion_cmd(cybergear_motor_t *motor, cybergear_motion_cmd_t *cmd)
 {
+    if (!_is_valid_motor(motor) || cmd == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
     uint8_t data[8] = {0x00};
 
     uint16_t position = _float_to_uint(cmd->position, POS_MIN, POS_MAX, 16);
@@ -197,18 +222,32 @@ esp_err_t cybergear_set_speed(cybergear_motor_t *motor, float speed)
     return _send_can_float_package(motor, ADDR_SPEED_REF, speed, V_MIN, V_MAX);
 }
 
-void cybergear_get_status(cybergear_motor_t *motor, cybergear_status_t *status)
+esp_err_t cybergear_get_status(cybergear_motor_t *motor, cybergear_status_t *status)
 {
+    if (motor == NULL || status == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
     memcpy(status, &motor->status, sizeof(cybergear_status_t));
+    return ESP_OK;
 }
 
-void cybergear_get_faults(cybergear_motor_t *motor, cybergear_fault_t *faults)
+esp_err_t cybergear_get_faults(cybergear_motor_t *motor, cybergear_fault_t *faults)
 {
+    if (motor == NULL || faults == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
     memcpy(faults, &motor->faults.fault_bits, sizeof(cybergear_fault_t));
+    return ESP_OK;
 }
 
 bool cybergear_has_faults(cybergear_motor_t *motor)
 {
+    if (motor == NULL) {
+        return false;
+    }
+
     return motor->faults.fault_bitmask > 0;
 }
 
@@ -219,6 +258,10 @@ esp_err_t _send_can_package(cybergear_motor_t *motor, uint8_t cmd_id, uint8_t le
 
 esp_err_t _send_can_option_package(cybergear_motor_t *motor, uint8_t cmd_id, uint8_t option, uint8_t len, uint8_t* data)
 {
+    if (!_is_valid_motor(motor) || data == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
     uint32_t id = cmd_id << 24 | option << 8 | motor->config->can_id;
     esp_err_t err;
     if (motor->config->send == NULL) {

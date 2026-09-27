@@ -142,8 +142,8 @@ esp_err_t cybergear_set_speed_kp(cybergear_motor_t *motor, float kp);
 esp_err_t cybergear_set_speed_ki(cybergear_motor_t *motor, float ki);
 esp_err_t cybergear_set_speed(cybergear_motor_t *motor, float speed);
 
-void cybergear_get_status(cybergear_motor_t *motor, cybergear_status_t *status);
-void cybergear_get_faults(cybergear_motor_t *motor, cybergear_fault_t *faults);
+esp_err_t cybergear_get_status(cybergear_motor_t *motor, cybergear_status_t *status);
+esp_err_t cybergear_get_faults(cybergear_motor_t *motor, cybergear_fault_t *faults);
 bool cybergear_has_faults(cybergear_motor_t *motor);
 
 #endif
