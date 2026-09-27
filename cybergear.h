@@ -30,18 +30,21 @@ typedef struct
 
 typedef struct
 {
-    bool overload;
-    bool uncalibrated;
-    bool over_current_phase_a;
-    bool over_current_phase_b;
-    bool over_current_phase_c;    
-    bool over_voltage;
-    bool under_voltage;
-    bool driver_chip;
-    bool over_temperature;
-    bool magnetic_code_failure;
-    bool hall_coded_faults;
+    uint16_t overload : 1;
+    uint16_t uncalibrated : 1;
+    uint16_t over_current_phase_a : 1;
+    uint16_t over_current_phase_b : 1;
+    uint16_t over_current_phase_c : 1;
+    uint16_t over_voltage : 1;
+    uint16_t under_voltage : 1;
+    uint16_t driver_chip : 1;
+    uint16_t over_temperature : 1;
+    uint16_t magnetic_code_failure : 1;
+    uint16_t hall_coded_faults : 1;
+    uint16_t reserved : 5;
 } cybergear_fault_t;
+
+_Static_assert(sizeof(cybergear_fault_t) == sizeof(uint16_t), "CyberGear faults must fit the bitmask");
 
 typedef struct
 {

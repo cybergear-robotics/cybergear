@@ -280,12 +280,12 @@ esp_err_t _process_motor_message(cybergear_motor_t *motor, const cybergear_messa
     motor->status.speed = _uint_to_float(raw_speed, V_MIN, V_MAX);
     motor->status.torque = _uint_to_float(raw_torque, T_MIN, T_MAX);
     motor->status.temperature = ((float) raw_temperature)/10;
-    motor->faults.fault_bits.under_voltage = message->identifier & (1 << 16);
-    motor->faults.fault_bits.overload = message->identifier & (1 << 17);
-    motor->faults.fault_bits.over_temperature = message->identifier & (1 << 18);
-    motor->faults.fault_bits.magnetic_code_failure = message->identifier & (1 << 19);
-    motor->faults.fault_bits.hall_coded_faults = message->identifier & (1 << 20);
-    motor->faults.fault_bits.uncalibrated = message->identifier & (1 << 21);
+    motor->faults.fault_bits.under_voltage = (message->identifier & (1 << 16)) != 0;
+    motor->faults.fault_bits.overload = (message->identifier & (1 << 17)) != 0;
+    motor->faults.fault_bits.over_temperature = (message->identifier & (1 << 18)) != 0;
+    motor->faults.fault_bits.magnetic_code_failure = (message->identifier & (1 << 19)) != 0;
+    motor->faults.fault_bits.hall_coded_faults = (message->identifier & (1 << 20)) != 0;
+    motor->faults.fault_bits.uncalibrated = (message->identifier & (1 << 21)) != 0;
     return err;
 }
 
@@ -300,15 +300,15 @@ esp_err_t _process_fault_message(cybergear_motor_t *motor, const cybergear_messa
                      message->data[5] << 8  |
                      message->data[4];
     
-    motor->faults.fault_bits.over_current_phase_a = fault & (1 << 16);
+    motor->faults.fault_bits.over_current_phase_a = (fault & (1 << 16)) != 0;
     //motor->faults.overload = 0; // TODO: fault[8:15]
-    motor->faults.fault_bits.uncalibrated = fault & (1 << 7);    
-    motor->faults.fault_bits.over_current_phase_c = fault & (1 << 5);
-    motor->faults.fault_bits.over_current_phase_b = fault & (1 << 4);
-    motor->faults.fault_bits.over_voltage = fault & (1 << 3);
-    motor->faults.fault_bits.under_voltage = fault & (1 << 2);
-    motor->faults.fault_bits.driver_chip = fault & (1 << 1);
-    motor->faults.fault_bits.over_temperature = warning & (1 << 0);
+    motor->faults.fault_bits.uncalibrated = (fault & (1 << 7)) != 0;
+    motor->faults.fault_bits.over_current_phase_c = (fault & (1 << 5)) != 0;
+    motor->faults.fault_bits.over_current_phase_b = (fault & (1 << 4)) != 0;
+    motor->faults.fault_bits.over_voltage = (fault & (1 << 3)) != 0;
+    motor->faults.fault_bits.under_voltage = (fault & (1 << 2)) != 0;
+    motor->faults.fault_bits.driver_chip = (fault & (1 << 1)) != 0;
+    motor->faults.fault_bits.over_temperature = (warning & (1 << 0)) != 0;
     return ESP_OK;
 }
 
