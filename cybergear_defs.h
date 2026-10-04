@@ -1,6 +1,7 @@
 #ifndef CYBERGEAR_DEFS_H
 #define CYBERGEAR_DEFS_H
 
+#define CMD_GET_DEVICE_ID             0x0
 #define CMD_POSITION                  0x1
 #define CMD_REQUEST                   0x2
 #define CMD_ENABLE                    0x3

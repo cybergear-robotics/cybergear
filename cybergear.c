@@ -6,11 +6,12 @@
 #define RETURN_ON_ERROR(x) {esp_err_t rc = (x); if (rc != ESP_OK) { return rc; }};
 
 esp_err_t _send_can_package(cybergear_motor_t *motor, uint8_t cmd_id, uint8_t len, uint8_t* data);
-esp_err_t _send_can_option_package(cybergear_motor_t *motor, uint8_t cmd_id, uint8_t option, uint8_t len, uint8_t* data);
+esp_err_t _send_can_option_package(cybergear_motor_t *motor, uint8_t cmd_id, uint16_t option, uint8_t len, uint8_t* data);
 esp_err_t _send_can_float_package(cybergear_motor_t *motor, uint16_t addr, float value, float min, float max);
 uint16_t _float_to_uint(float x, float x_min, float x_max, int bits);
 float _uint_to_float(uint16_t x, float x_min, float x_max);
 esp_err_t _process_motor_message(cybergear_motor_t *motor, const cybergear_message_t *message);
+esp_err_t _process_device_info_message(cybergear_motor_t *motor, const cybergear_message_t *message);
 esp_err_t _process_fault_message(cybergear_motor_t *motor, const cybergear_message_t *message);
 esp_err_t _process_param_message(cybergear_motor_t *motor, const cybergear_message_t *message);
 
@@ -29,6 +30,7 @@ esp_err_t cybergear_init(cybergear_motor_t *motor, cybergear_config_t *config) {
 
     memset(&motor->params, 0, sizeof(motor->params));
     memset(&motor->status, 0, sizeof(motor->status));
+    memset(&motor->device_info, 0, sizeof(motor->device_info));
     motor->config = config;
     motor->faults.fault_bitmask = 0; /* reset faults */
     
@@ -125,6 +127,8 @@ esp_err_t cybergear_process_message(cybergear_motor_t *motor, const cybergear_me
 
     switch(packet_type)
     {
+        case CMD_GET_DEVICE_ID:
+            return _process_device_info_message(motor, message);
         case CMD_REQUEST:
             return _process_motor_message(motor, message);
         case CMD_RAM_READ:
@@ -235,6 +239,15 @@ esp_err_t cybergear_get_status(cybergear_motor_t *motor, cybergear_status_t *sta
     return ESP_OK;
 }
 
+esp_err_t cybergear_get_device_info(cybergear_motor_t *motor, cybergear_device_info_t *device_info)
+{
+    if (motor == NULL || device_info == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    memcpy(device_info, &motor->device_info, sizeof(*device_info));
+    return ESP_OK;
+}
+
 esp_err_t cybergear_get_faults(cybergear_motor_t *motor, cybergear_fault_t *faults)
 {
     if (motor == NULL || faults == NULL) {
@@ -259,7 +272,7 @@ esp_err_t _send_can_package(cybergear_motor_t *motor, uint8_t cmd_id, uint8_t le
     return _send_can_option_package(motor, cmd_id, motor->config->master_can_id, len, data);
 }
 
-esp_err_t _send_can_option_package(cybergear_motor_t *motor, uint8_t cmd_id, uint8_t option, uint8_t len, uint8_t* data)
+esp_err_t _send_can_option_package(cybergear_motor_t *motor, uint8_t cmd_id, uint16_t option, uint8_t len, uint8_t* data)
 {
     if (!_is_valid_motor(motor) || data == NULL) {
         return ESP_ERR_INVALID_ARG;
@@ -301,6 +314,15 @@ float _uint_to_float(uint16_t x, float x_min, float x_max)
     uint16_t type_max = 0xFFFF;
     float span = x_max - x_min;
     return (float) x / type_max * span + x_min;
+}
+
+esp_err_t _process_device_info_message(cybergear_motor_t *motor, const cybergear_message_t *message)
+{
+    motor->device_info.motor_can_id = (message->identifier >> 8) & 0xff;
+    motor->device_info.recipient_can_id = message->identifier & 0xff;
+    memcpy(motor->device_info.unique_id, message->data, sizeof(motor->device_info.unique_id));
+    motor->device_info.updated = true;
+    return ESP_OK;
 }
 
 esp_err_t _process_motor_message(cybergear_motor_t *motor, const cybergear_message_t *message)

@@ -73,6 +73,15 @@ typedef struct
   bool updated; /* indicator if the struct is updated*/
 } cybergear_params_t;
 
+/** @brief Device identity returned in a type-0 CAN response. */
+typedef struct
+{
+    uint8_t motor_can_id;
+    uint8_t recipient_can_id;
+    uint8_t unique_id[8];
+    bool updated;
+} cybergear_device_info_t;
+
 /** @brief One received extended CAN frame for the driver to process. */
 typedef struct
 {
@@ -112,6 +121,7 @@ typedef struct
     cybergear_config_t *config;
     cybergear_params_t params;    
     cybergear_status_t status;
+    cybergear_device_info_t device_info;
     union {
         cybergear_fault_t fault_bits;
         uint16_t fault_bitmask;
@@ -355,6 +365,14 @@ esp_err_t cybergear_set_speed(cybergear_motor_t *motor, float speed);
  * @return ESP_ERR_INVALID_ARG if motor or status is null.
  */
 esp_err_t cybergear_get_status(cybergear_motor_t *motor, cybergear_status_t *status);
+/**
+ * @brief Copies the latest type-0 device identity response.
+ * @param motor Motor instance to query.
+ * @param device_info Destination for the decoded identity.
+ * @return ESP_OK on success.
+ * @return ESP_ERR_INVALID_ARG if motor or device_info is null.
+ */
+esp_err_t cybergear_get_device_info(cybergear_motor_t *motor, cybergear_device_info_t *device_info);
 /**
  * @brief Copies the latest fault flags.
  * @param motor Motor instance to query.
