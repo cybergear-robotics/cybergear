@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        idf_ver: ["release-v6.1"]
+        idf_ver: ["release-v5.5", "release-v6.1"]
         idf_target: ["esp32s3"]
         example_project: ["position_test"]
     steps:
