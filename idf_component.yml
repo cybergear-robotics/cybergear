@@ -12,9 +12,6 @@ tags:
 maintainers:
   - "Johannes Fischer"
 
-dependencies:
-  idf: ">=6.1"
-
 files:
   exclude:
     - "datasheet/"
