@@ -150,7 +150,7 @@ esp_err_t cybergear_init(cybergear_motor_t *motor, cybergear_config_t *config);
  */
 esp_err_t cybergear_enable(cybergear_motor_t *motor);
 /**
- * @brief Stops the motor and clears active motor faults.
+ * @brief Stops the motor without clearing active motor faults.
  * @param motor Motor instance to stop.
  * @return ESP_OK on success.
  * @return ESP_ERR_INVALID_ARG if motor or motor->config is null.
@@ -158,7 +158,15 @@ esp_err_t cybergear_enable(cybergear_motor_t *motor);
  * @return Other error returned by motor->config->send.
  */
 esp_err_t cybergear_stop(cybergear_motor_t *motor);
-esp_err_t cybergear_stop(cybergear_motor_t *motor);
+/**
+ * @brief Stops the motor and clears active motor faults.
+ * @param motor Motor instance to stop.
+ * @return ESP_OK on success.
+ * @return ESP_ERR_INVALID_ARG if motor or motor->config is null.
+ * @return ESP_ERR_INVALID_STATE if motor->config->send is null.
+ * @return Other error returned by motor->config->send.
+ */
+esp_err_t cybergear_stop_and_clear_faults(cybergear_motor_t *motor);
 /**
  * @brief Sets the motor run mode.
  * @param motor Motor instance to configure.

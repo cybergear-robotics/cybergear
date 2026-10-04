@@ -55,7 +55,13 @@ esp_err_t cybergear_enable(cybergear_motor_t *motor)
 esp_err_t cybergear_stop(cybergear_motor_t *motor)
 {
     uint8_t data[8] = {0x00};
-    data[0] = 0x01; // clear faults
+    return _send_can_package(motor, CMD_RESET, 8, data);
+}
+
+esp_err_t cybergear_stop_and_clear_faults(cybergear_motor_t *motor)
+{
+    uint8_t data[8] = {0x00};
+    data[0] = 0x01;
     return _send_can_package(motor, CMD_RESET, 8, data);
 }
 

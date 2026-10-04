@@ -50,8 +50,12 @@ protocol broadcast value, not the configured host CAN ID.
 
 - Commands report CAN transport submission only. Motor replies are asynchronous
   and must be passed to `cybergear_process_message()`.
-- `cybergear_stop()` always sets data byte 0 to `1`; it stops the motor and
-  clears active faults. The driver has no stop-without-clearing-faults API.
+- `cybergear_stop()` sends `CMD_RESET` with data byte 0 set to `0`; it stops
+  the motor without clearing active faults.
+- `cybergear_stop_and_clear_faults()` sends `CMD_RESET` with data byte 0 set
+  to `1`; it stops the motor and clears active faults.
+- This changed the behavior of `cybergear_stop()`. Existing applications that
+  rely on it to clear faults must call `cybergear_stop_and_clear_faults()`.
 - `cybergear_get_status()` and `cybergear_get_faults()` return cached data. A
   caller must wait for a new type-2 or type-21 frame when fresh data is needed.
 - Parameter reads share one `params.updated` flag and have no request sequence

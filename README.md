@@ -74,8 +74,9 @@ idf.py create-project-from-example "cybergear-robotics/cybergear:position_test"
 
 ### How to clear an alarm?
 
-If a fault occurs, the alarm can be cleared with the `cybergear_stop` command,
-which corresponds to `CMD_RESET`.
+If a fault occurs, the alarm can be cleared with
+`cybergear_stop_and_clear_faults`, which corresponds to `CMD_RESET` with the
+fault-clear flag set.
 
 
 ### What if the motor does not react to sent commands?

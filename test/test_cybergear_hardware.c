@@ -259,6 +259,18 @@ TEST_CASE("stops and reports no faults", "[hardware][status]")
     stop_motor();
 }
 
+TEST_CASE("stops and clears faults explicitly", "[hardware][fault]")
+{
+    cybergear_status_t status;
+    cybergear_fault_t faults;
+    prepare_motor(&status);
+    TEST_ASSERT_EQUAL(ESP_OK, cybergear_stop_and_clear_faults(&motor));
+    TEST_ASSERT_TRUE(request_status(&motor, &context, &status, "clear_faults_status"));
+    TEST_ASSERT_EQUAL(CYBERGEAR_STATE_RESET, status.state);
+    TEST_ASSERT_EQUAL(ESP_OK, cybergear_get_faults(&motor, &faults));
+    TEST_ASSERT_FALSE(cybergear_has_faults(&motor));
+}
+
 TEST_CASE("writes and reads back speed limit", "[hardware][write]")
 {
     cybergear_status_t status;
