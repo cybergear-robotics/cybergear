@@ -1,0 +1,12 @@
+{
+  "name": "CyberGear ESP-IDF 6.1",
+  "image": "espressif/idf:v6.1",
+  "remoteUser": "esp",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "espressif.esp-idf-extension"
+      ]
+    }
+  }
+}
