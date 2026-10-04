@@ -4,15 +4,10 @@
 #include "cybergear.h"
 
 /**
- * @brief Logs each active and inactive motor fault flag.
- * @param faults Fault flags to log.
+ * @brief Logs the raw motor diagnostic masks.
+ * @param diagnostics Raw diagnostic masks to log.
  */
-void cybergear_print_faults(cybergear_fault_t *faults);
-/**
- * @brief Logs each active and inactive motor warning flag.
- * @param warnings Warning flags to log.
- */
-void cybergear_print_warnings(cybergear_warning_t *warnings);
+void cybergear_print_diagnostics(cybergear_diagnostics_t *diagnostics);
 /**
  * @brief Logs the latest motor status values.
  * @param status Status values to log.

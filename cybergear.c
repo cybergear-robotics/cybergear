@@ -32,8 +32,7 @@ esp_err_t cybergear_init(cybergear_motor_t *motor, cybergear_config_t *config) {
     memset(&motor->status, 0, sizeof(motor->status));
     memset(&motor->device_info, 0, sizeof(motor->device_info));
     motor->config = config;
-    motor->faults.fault_bitmask = 0; /* reset faults */
-    motor->warnings.warning_bitmask = 0;
+    memset(&motor->diagnostics, 0, sizeof(motor->diagnostics));
     
     RETURN_ON_ERROR(cybergear_stop(motor));
     RETURN_ON_ERROR(cybergear_set_mode(motor, config->mode));
@@ -255,22 +254,12 @@ esp_err_t cybergear_get_device_info(cybergear_motor_t *motor, cybergear_device_i
     return ESP_OK;
 }
 
-esp_err_t cybergear_get_faults(cybergear_motor_t *motor, cybergear_fault_t *faults)
+esp_err_t cybergear_get_diagnostics(cybergear_motor_t *motor, cybergear_diagnostics_t *diagnostics)
 {
-    if (motor == NULL || faults == NULL) {
+    if (motor == NULL || diagnostics == NULL) {
         return ESP_ERR_INVALID_ARG;
     }
-
-    memcpy(faults, &motor->faults.fault_bits, sizeof(cybergear_fault_t));
-    return ESP_OK;
-}
-
-esp_err_t cybergear_get_warnings(cybergear_motor_t *motor, cybergear_warning_t *warnings)
-{
-    if (motor == NULL || warnings == NULL) {
-        return ESP_ERR_INVALID_ARG;
-    }
-    memcpy(warnings, &motor->warnings.warning_bits, sizeof(*warnings));
+    memcpy(diagnostics, &motor->diagnostics, sizeof(*diagnostics));
     return ESP_OK;
 }
 
@@ -280,7 +269,7 @@ bool cybergear_has_faults(cybergear_motor_t *motor)
         return false;
     }
 
-    return motor->faults.fault_bitmask > 0;
+    return motor->diagnostics.status_fault_mask != 0 || motor->diagnostics.fault_mask != 0;
 }
 
 bool cybergear_has_warnings(cybergear_motor_t *motor)
@@ -288,7 +277,7 @@ bool cybergear_has_warnings(cybergear_motor_t *motor)
     if (motor == NULL) {
         return false;
     }
-    return motor->warnings.warning_bitmask > 0;
+    return motor->diagnostics.warning_mask != 0;
 }
 
 esp_err_t _send_can_package(cybergear_motor_t *motor, uint8_t cmd_id, uint8_t len, uint8_t* data)
@@ -375,12 +364,7 @@ esp_err_t _process_motor_message(cybergear_motor_t *motor, const cybergear_messa
     motor->status.speed = _uint_to_float(raw_speed, V_MIN, V_MAX);
     motor->status.torque = _uint_to_float(raw_torque, T_MIN, T_MAX);
     motor->status.temperature = ((float) raw_temperature)/10;
-    motor->faults.fault_bits.under_voltage = (message->identifier & (1 << 16)) != 0;
-    motor->faults.fault_bits.overload = (message->identifier & (1 << 17)) != 0;
-    motor->faults.fault_bits.over_temperature = (message->identifier & (1 << 18)) != 0;
-    motor->faults.fault_bits.magnetic_code_failure = (message->identifier & (1 << 19)) != 0;
-    motor->faults.fault_bits.hall_coded_faults = (message->identifier & (1 << 20)) != 0;
-    motor->faults.fault_bits.uncalibrated = (message->identifier & (1 << 21)) != 0;
+    motor->diagnostics.status_fault_mask = message->identifier & 0x003f0000;
     return err;
 }
 
@@ -395,15 +379,8 @@ esp_err_t _process_fault_message(cybergear_motor_t *motor, const cybergear_messa
                      message->data[5] << 8  |
                      message->data[4];
     
-    motor->faults.fault_bits.over_current_phase_a = (fault & (1 << 16)) != 0;
-    //motor->faults.overload = 0; // TODO: fault[8:15]
-    motor->faults.fault_bits.uncalibrated = (fault & (1 << 7)) != 0;
-    motor->faults.fault_bits.over_current_phase_c = (fault & (1 << 5)) != 0;
-    motor->faults.fault_bits.over_current_phase_b = (fault & (1 << 4)) != 0;
-    motor->faults.fault_bits.over_voltage = (fault & (1 << 3)) != 0;
-    motor->faults.fault_bits.under_voltage = (fault & (1 << 2)) != 0;
-    motor->faults.fault_bits.driver_chip = (fault & (1 << 1)) != 0;
-    motor->warnings.warning_bits.over_temperature = (warning & (1 << 0)) != 0;
+    motor->diagnostics.fault_mask = fault;
+    motor->diagnostics.warning_mask = warning;
     return ESP_OK;
 }
 

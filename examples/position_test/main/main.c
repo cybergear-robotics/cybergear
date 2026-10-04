@@ -128,12 +128,10 @@ void app_main(void)
 		/* Received frames are processed by twai_rx_done_cb. */
 		ESP_ERROR_CHECK(cybergear_get_status(&cybergear_motor, &status));
 		cybergear_print_status(&status);
-		/* get cybergear faults */
-		if(cybergear_has_faults(&cybergear_motor))
-		{
-			cybergear_fault_t faults;
-			ESP_ERROR_CHECK(cybergear_get_faults(&cybergear_motor, &faults));
-			cybergear_print_faults(&faults);
+		if (cybergear_has_faults(&cybergear_motor) || cybergear_has_warnings(&cybergear_motor)) {
+			cybergear_diagnostics_t diagnostics;
+			ESP_ERROR_CHECK(cybergear_get_diagnostics(&cybergear_motor, &diagnostics));
+			cybergear_print_diagnostics(&diagnostics);
 		}
 	}
 }

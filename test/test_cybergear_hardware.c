@@ -252,23 +252,25 @@ PARAMETER_TEST("speed Ki", ADDR_SPD_KI)
 TEST_CASE("stops and reports no faults", "[hardware][status]")
 {
     cybergear_status_t status;
-    cybergear_fault_t faults;
+    cybergear_diagnostics_t diagnostics;
     prepare_motor(&status);
-    TEST_ASSERT_EQUAL(ESP_OK, cybergear_get_faults(&motor, &faults));
+    TEST_ASSERT_EQUAL(ESP_OK, cybergear_get_diagnostics(&motor, &diagnostics));
     TEST_ASSERT_FALSE(cybergear_has_faults(&motor));
+    TEST_ASSERT_FALSE(cybergear_has_warnings(&motor));
     stop_motor();
 }
 
 TEST_CASE("stops and clears faults explicitly", "[hardware][fault]")
 {
     cybergear_status_t status;
-    cybergear_fault_t faults;
+    cybergear_diagnostics_t diagnostics;
     prepare_motor(&status);
     TEST_ASSERT_EQUAL(ESP_OK, cybergear_stop_and_clear_faults(&motor));
     TEST_ASSERT_TRUE(request_status(&motor, &context, &status, "clear_faults_status"));
     TEST_ASSERT_EQUAL(CYBERGEAR_STATE_RESET, status.state);
-    TEST_ASSERT_EQUAL(ESP_OK, cybergear_get_faults(&motor, &faults));
+    TEST_ASSERT_EQUAL(ESP_OK, cybergear_get_diagnostics(&motor, &diagnostics));
     TEST_ASSERT_FALSE(cybergear_has_faults(&motor));
+    TEST_ASSERT_FALSE(cybergear_has_warnings(&motor));
 }
 
 TEST_CASE("keeps type-21 warnings separate from faults", "[fault][warning]")
@@ -281,18 +283,17 @@ TEST_CASE("keeps type-21 warnings separate from faults", "[fault][warning]")
         .data = data,
         .data_length = sizeof(data),
     };
-    cybergear_fault_t faults;
-    cybergear_warning_t warnings;
+    cybergear_diagnostics_t diagnostics;
 
     test_motor.config = &test_config;
     data[4] = 0x01;
     TEST_ASSERT_EQUAL(ESP_OK, cybergear_process_message(&test_motor, &message));
-    TEST_ASSERT_EQUAL(ESP_OK, cybergear_get_faults(&test_motor, &faults));
-    TEST_ASSERT_EQUAL(ESP_OK, cybergear_get_warnings(&test_motor, &warnings));
+    TEST_ASSERT_EQUAL(ESP_OK, cybergear_get_diagnostics(&test_motor, &diagnostics));
     TEST_ASSERT_FALSE(cybergear_has_faults(&test_motor));
     TEST_ASSERT_TRUE(cybergear_has_warnings(&test_motor));
-    TEST_ASSERT_FALSE(faults.over_temperature);
-    TEST_ASSERT_TRUE(warnings.over_temperature);
+    TEST_ASSERT_EQUAL(0, diagnostics.status_fault_mask);
+    TEST_ASSERT_EQUAL(0, diagnostics.fault_mask);
+    TEST_ASSERT_EQUAL(CYBERGEAR_WARNING_OVER_TEMPERATURE, diagnostics.warning_mask);
 }
 
 TEST_CASE("writes and reads back speed limit", "[hardware][write]")

@@ -30,33 +30,34 @@ typedef struct
     float kd;
 } cybergear_motion_cmd_t;
 
-/** @brief Fault flags reported by the motor. */
+/* Type-2 feedback fault bits retain their original identifier positions. */
+#define CYBERGEAR_STATUS_FAULT_UNDER_VOLTAGE       (1u << 16)
+#define CYBERGEAR_STATUS_FAULT_OVER_CURRENT        (1u << 17)
+#define CYBERGEAR_STATUS_FAULT_OVER_TEMPERATURE    (1u << 18)
+#define CYBERGEAR_STATUS_FAULT_MAGNETIC_ENCODER    (1u << 19)
+#define CYBERGEAR_STATUS_FAULT_HALL                (1u << 20)
+#define CYBERGEAR_STATUS_FAULT_UNCALIBRATED        (1u << 21)
+
+/* Known Type-21 detailed fault bits retain their original data positions. */
+#define CYBERGEAR_FAULT_DRIVER_CHIP                (1u << 1)
+#define CYBERGEAR_FAULT_UNDER_VOLTAGE              (1u << 2)
+#define CYBERGEAR_FAULT_OVER_VOLTAGE               (1u << 3)
+#define CYBERGEAR_FAULT_OVER_CURRENT_PHASE_B       (1u << 4)
+#define CYBERGEAR_FAULT_OVER_CURRENT_PHASE_C       (1u << 5)
+#define CYBERGEAR_FAULT_UNCALIBRATED               (1u << 7)
+#define CYBERGEAR_FAULT_OVERLOAD_MASK              (0xffu << 8)
+#define CYBERGEAR_FAULT_OVER_CURRENT_PHASE_A       (1u << 16)
+
+/* Known Type-21 warning bits retain their original data positions. */
+#define CYBERGEAR_WARNING_OVER_TEMPERATURE         (1u << 0)
+
+/** @brief Raw diagnostic masks received from type-2 and type-21 frames. */
 typedef struct
 {
-    uint16_t overload : 1;
-    uint16_t uncalibrated : 1;
-    uint16_t over_current_phase_a : 1;
-    uint16_t over_current_phase_b : 1;
-    uint16_t over_current_phase_c : 1;
-    uint16_t over_voltage : 1;
-    uint16_t under_voltage : 1;
-    uint16_t driver_chip : 1;
-    uint16_t over_temperature : 1;
-    uint16_t magnetic_code_failure : 1;
-    uint16_t hall_coded_faults : 1;
-    uint16_t reserved : 5;
-} cybergear_fault_t;
-
-_Static_assert(sizeof(cybergear_fault_t) == sizeof(uint16_t), "CyberGear faults must fit the bitmask");
-
-/** @brief Warning flags reported by the motor. */
-typedef struct
-{
-    uint16_t over_temperature : 1;
-    uint16_t reserved : 15;
-} cybergear_warning_t;
-
-_Static_assert(sizeof(cybergear_warning_t) == sizeof(uint16_t), "CyberGear warnings must fit the bitmask");
+    uint32_t status_fault_mask;
+    uint32_t fault_mask;
+    uint32_t warning_mask;
+} cybergear_diagnostics_t;
 
 /** @brief Values returned by RAM parameter-read responses. */
 typedef struct
@@ -131,14 +132,7 @@ typedef struct
     cybergear_params_t params;    
     cybergear_status_t status;
     cybergear_device_info_t device_info;
-    union {
-        cybergear_fault_t fault_bits;
-        uint16_t fault_bitmask;
-    } faults;
-    union {
-        cybergear_warning_t warning_bits;
-        uint16_t warning_bitmask;
-    } warnings;
+    cybergear_diagnostics_t diagnostics;
 } cybergear_motor_t;
 
 
@@ -394,30 +388,22 @@ esp_err_t cybergear_get_status(cybergear_motor_t *motor, cybergear_status_t *sta
  */
 esp_err_t cybergear_get_device_info(cybergear_motor_t *motor, cybergear_device_info_t *device_info);
 /**
- * @brief Copies the latest fault flags.
+ * @brief Copies the latest raw diagnostic masks.
  * @param motor Motor instance to query.
- * @param faults Destination for the latest fault flags.
+ * @param diagnostics Destination for the latest diagnostic masks.
  * @return ESP_OK on success.
- * @return ESP_ERR_INVALID_ARG if motor or faults is null.
+ * @return ESP_ERR_INVALID_ARG if motor or diagnostics is null.
  */
-esp_err_t cybergear_get_faults(cybergear_motor_t *motor, cybergear_fault_t *faults);
+esp_err_t cybergear_get_diagnostics(cybergear_motor_t *motor, cybergear_diagnostics_t *diagnostics);
 /**
- * @brief Copies the latest warning flags.
- * @param motor Motor instance to query.
- * @param warnings Destination for the latest warning flags.
- * @return ESP_OK on success.
- * @return ESP_ERR_INVALID_ARG if motor or warnings is null.
- */
-esp_err_t cybergear_get_warnings(cybergear_motor_t *motor, cybergear_warning_t *warnings);
-/**
- * @brief Returns whether the latest fault flags contain an active fault.
+ * @brief Returns whether the latest diagnostic masks contain an active fault.
  * @param motor Motor instance to query.
  * @return true if a fault is active.
  * @return false if no fault is active or motor is null.
  */
 bool cybergear_has_faults(cybergear_motor_t *motor);
 /**
- * @brief Returns whether the latest warning flags contain an active warning.
+ * @brief Returns whether the latest diagnostic masks contain an active warning.
  * @param motor Motor instance to query.
  * @return true if a warning is active.
  * @return false if no warning is active or motor is null.
