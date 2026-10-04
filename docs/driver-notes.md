@@ -58,6 +58,10 @@ protocol broadcast value, not the configured host CAN ID.
   rely on it to clear faults must call `cybergear_stop_and_clear_faults()`.
 - `cybergear_get_status()` and `cybergear_get_faults()` return cached data. A
   caller must wait for a new type-2 or type-21 frame when fresh data is needed.
+- Faults and warnings are separate driver states. Use `cybergear_get_faults()`
+  and `cybergear_has_faults()` for faults; use `cybergear_get_warnings()` and
+  `cybergear_has_warnings()` for warnings. Type-21 warning bit 0 is decoded as
+  `cybergear_warning_t::over_temperature`.
 - Parameter reads share one `params.updated` flag and have no request sequence
   number. Serialize requests and verify the returned parameter address.
 - The current-limit API accepts up to 27 A, although the manual specifies 23 A

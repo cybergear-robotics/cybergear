@@ -271,6 +271,30 @@ TEST_CASE("stops and clears faults explicitly", "[hardware][fault]")
     TEST_ASSERT_FALSE(cybergear_has_faults(&motor));
 }
 
+TEST_CASE("keeps type-21 warnings separate from faults", "[fault][warning]")
+{
+    cybergear_motor_t test_motor = { 0 };
+    cybergear_config_t test_config = { .can_id = 1 };
+    uint8_t data[8] = { 0 };
+    cybergear_message_t message = {
+        .identifier = CMD_GET_MOTOR_FAIL << 24 | 1 << 8,
+        .data = data,
+        .data_length = sizeof(data),
+    };
+    cybergear_fault_t faults;
+    cybergear_warning_t warnings;
+
+    test_motor.config = &test_config;
+    data[4] = 0x01;
+    TEST_ASSERT_EQUAL(ESP_OK, cybergear_process_message(&test_motor, &message));
+    TEST_ASSERT_EQUAL(ESP_OK, cybergear_get_faults(&test_motor, &faults));
+    TEST_ASSERT_EQUAL(ESP_OK, cybergear_get_warnings(&test_motor, &warnings));
+    TEST_ASSERT_FALSE(cybergear_has_faults(&test_motor));
+    TEST_ASSERT_TRUE(cybergear_has_warnings(&test_motor));
+    TEST_ASSERT_FALSE(faults.over_temperature);
+    TEST_ASSERT_TRUE(warnings.over_temperature);
+}
+
 TEST_CASE("writes and reads back speed limit", "[hardware][write]")
 {
     cybergear_status_t status;

@@ -20,6 +20,11 @@ void cybergear_print_faults(cybergear_fault_t *faults)
     ESP_LOGI(TAG, "Fault Hall-Coded: %s",btoa(faults->hall_coded_faults));
 }
 
+void cybergear_print_warnings(cybergear_warning_t *warnings)
+{
+    ESP_LOGI(TAG, "Warning Over-Temperature: %s", btoa(warnings->over_temperature));
+}
+
 const char *as_string(cybergear_state_e state)
 {
     switch ((state))

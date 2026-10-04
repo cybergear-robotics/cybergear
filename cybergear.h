@@ -49,6 +49,15 @@ typedef struct
 
 _Static_assert(sizeof(cybergear_fault_t) == sizeof(uint16_t), "CyberGear faults must fit the bitmask");
 
+/** @brief Warning flags reported by the motor. */
+typedef struct
+{
+    uint16_t over_temperature : 1;
+    uint16_t reserved : 15;
+} cybergear_warning_t;
+
+_Static_assert(sizeof(cybergear_warning_t) == sizeof(uint16_t), "CyberGear warnings must fit the bitmask");
+
 /** @brief Values returned by RAM parameter-read responses. */
 typedef struct
 {
@@ -126,7 +135,10 @@ typedef struct
         cybergear_fault_t fault_bits;
         uint16_t fault_bitmask;
     } faults;
-    
+    union {
+        cybergear_warning_t warning_bits;
+        uint16_t warning_bitmask;
+    } warnings;
 } cybergear_motor_t;
 
 
@@ -390,11 +402,26 @@ esp_err_t cybergear_get_device_info(cybergear_motor_t *motor, cybergear_device_i
  */
 esp_err_t cybergear_get_faults(cybergear_motor_t *motor, cybergear_fault_t *faults);
 /**
+ * @brief Copies the latest warning flags.
+ * @param motor Motor instance to query.
+ * @param warnings Destination for the latest warning flags.
+ * @return ESP_OK on success.
+ * @return ESP_ERR_INVALID_ARG if motor or warnings is null.
+ */
+esp_err_t cybergear_get_warnings(cybergear_motor_t *motor, cybergear_warning_t *warnings);
+/**
  * @brief Returns whether the latest fault flags contain an active fault.
  * @param motor Motor instance to query.
  * @return true if a fault is active.
  * @return false if no fault is active or motor is null.
  */
 bool cybergear_has_faults(cybergear_motor_t *motor);
+/**
+ * @brief Returns whether the latest warning flags contain an active warning.
+ * @param motor Motor instance to query.
+ * @return true if a warning is active.
+ * @return false if no warning is active or motor is null.
+ */
+bool cybergear_has_warnings(cybergear_motor_t *motor);
 
 #endif

@@ -33,6 +33,7 @@ esp_err_t cybergear_init(cybergear_motor_t *motor, cybergear_config_t *config) {
     memset(&motor->device_info, 0, sizeof(motor->device_info));
     motor->config = config;
     motor->faults.fault_bitmask = 0; /* reset faults */
+    motor->warnings.warning_bitmask = 0;
     
     RETURN_ON_ERROR(cybergear_stop(motor));
     RETURN_ON_ERROR(cybergear_set_mode(motor, config->mode));
@@ -264,6 +265,15 @@ esp_err_t cybergear_get_faults(cybergear_motor_t *motor, cybergear_fault_t *faul
     return ESP_OK;
 }
 
+esp_err_t cybergear_get_warnings(cybergear_motor_t *motor, cybergear_warning_t *warnings)
+{
+    if (motor == NULL || warnings == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    memcpy(warnings, &motor->warnings.warning_bits, sizeof(*warnings));
+    return ESP_OK;
+}
+
 bool cybergear_has_faults(cybergear_motor_t *motor)
 {
     if (motor == NULL) {
@@ -271,6 +281,14 @@ bool cybergear_has_faults(cybergear_motor_t *motor)
     }
 
     return motor->faults.fault_bitmask > 0;
+}
+
+bool cybergear_has_warnings(cybergear_motor_t *motor)
+{
+    if (motor == NULL) {
+        return false;
+    }
+    return motor->warnings.warning_bitmask > 0;
 }
 
 esp_err_t _send_can_package(cybergear_motor_t *motor, uint8_t cmd_id, uint8_t len, uint8_t* data)
@@ -385,7 +403,7 @@ esp_err_t _process_fault_message(cybergear_motor_t *motor, const cybergear_messa
     motor->faults.fault_bits.over_voltage = (fault & (1 << 3)) != 0;
     motor->faults.fault_bits.under_voltage = (fault & (1 << 2)) != 0;
     motor->faults.fault_bits.driver_chip = (fault & (1 << 1)) != 0;
-    motor->faults.fault_bits.over_temperature = (warning & (1 << 0)) != 0;
+    motor->warnings.warning_bits.over_temperature = (warning & (1 << 0)) != 0;
     return ESP_OK;
 }
 
