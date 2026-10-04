@@ -2,13 +2,13 @@ menu "CyberGear Example"
 
     config CYBERGEAR_CAN_TX
         int "CAN TX"
-        default 36
+        default 13
         help
             GPIO number for CAN TX line.
 
     config CYBERGEAR_CAN_RX
         int "CAN RX"
-        default 35
+        default 14
         help
             GPIO number for CAN RX line.
 
