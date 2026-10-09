@@ -184,25 +184,20 @@ static bool read_parameter(cybergear_motor_t *motor, test_context_t *context, ui
 
 static test_context_t context;
 static cybergear_motor_t motor;
-static cybergear_config_t config = {
-    .send = twai_send,
-    .mode = CYBERGEAR_MODE_POSITION,
-    .master_can_id = CONFIG_CYBERGEAR_MASTER_CAN_ID,
-    .can_id = CONFIG_CYBERGEAR_MOTOR_CAN_ID,
-    .speed_limit = 1.0f,
-    .current_limit = 1.0f,
-    .torque_limit = 1.0f,
-    .enable_on_init = true,
-};
 static twai_node_handle_t node;
 
 static void prepare_motor(cybergear_status_t *status)
 {
-    int discovered_can_id = scan_motor_id(node, &context, config.master_can_id);
+    int discovered_can_id = scan_motor_id(node, &context, CONFIG_CYBERGEAR_MASTER_CAN_ID);
     TEST_ASSERT_GREATER_OR_EQUAL(0, discovered_can_id);
-    config.can_id = discovered_can_id;
-    memset(&motor, 0, sizeof(motor));
-    TEST_ASSERT_EQUAL(ESP_OK, cybergear_init(&motor, &config));
+    TEST_ASSERT_EQUAL(ESP_OK, cybergear_init(&motor, twai_send, node,
+                                             CONFIG_CYBERGEAR_MASTER_CAN_ID, discovered_can_id));
+    TEST_ASSERT_EQUAL(ESP_OK, cybergear_stop(&motor));
+    TEST_ASSERT_EQUAL(ESP_OK, cybergear_set_mode(&motor, CYBERGEAR_MODE_POSITION));
+    TEST_ASSERT_EQUAL(ESP_OK, cybergear_set_limit_speed(&motor, 1.0f));
+    TEST_ASSERT_EQUAL(ESP_OK, cybergear_set_limit_current(&motor, 1.0f));
+    TEST_ASSERT_EQUAL(ESP_OK, cybergear_set_limit_torque(&motor, 1.0f));
+    TEST_ASSERT_EQUAL(ESP_OK, cybergear_enable(&motor));
     TEST_ASSERT_TRUE(request_status(&motor, &context, status, "baseline_status"));
     if (status->state != CYBERGEAR_STATE_RUNNING) {
         TEST_ASSERT_EQUAL(ESP_OK, cybergear_enable(&motor));
@@ -276,7 +271,6 @@ TEST_CASE("stops and clears faults explicitly", "[hardware][fault]")
 TEST_CASE("keeps type-21 warnings separate from faults", "[fault][warning]")
 {
     cybergear_motor_t test_motor = { 0 };
-    cybergear_config_t test_config = { .can_id = 1 };
     uint8_t data[8] = { 0 };
     cybergear_message_t message = {
         .identifier = CMD_GET_MOTOR_FAIL << 24 | 1 << 8,
@@ -285,7 +279,7 @@ TEST_CASE("keeps type-21 warnings separate from faults", "[fault][warning]")
     };
     cybergear_diagnostics_t diagnostics;
 
-    test_motor.config = &test_config;
+    test_motor.can_id = 1;
     data[4] = 0x01;
     TEST_ASSERT_EQUAL(ESP_OK, cybergear_process_message(&test_motor, &message));
     TEST_ASSERT_EQUAL(ESP_OK, cybergear_get_diagnostics(&test_motor, &diagnostics));
@@ -423,11 +417,11 @@ TEST_CASE("keeps the current CAN ID", "[hardware][can]")
     prepare_motor(&status);
     TEST_ASSERT_EQUAL(ESP_OK, cybergear_stop(&motor));
     uint32_t previous = context.device_info_count;
-    TEST_ASSERT_EQUAL(ESP_OK, cybergear_set_motor_can_id(&motor, config.can_id));
+    TEST_ASSERT_EQUAL(ESP_OK, cybergear_set_motor_can_id(&motor, motor.can_id));
     TEST_ASSERT_TRUE(wait_for_count(&motor, &context, &context.device_info_count, previous, RESPONSE_TIMEOUT_MS));
     TEST_ASSERT_EQUAL(ESP_OK, cybergear_get_device_info(&motor, &device_info));
     TEST_ASSERT_TRUE(device_info.updated);
-    TEST_ASSERT_EQUAL(config.can_id, device_info.motor_can_id);
+    TEST_ASSERT_EQUAL(motor.can_id, device_info.motor_can_id);
     TEST_ASSERT_EQUAL(0xfe, device_info.recipient_can_id);
     TEST_ASSERT_FALSE(device_info.unique_id[0] == 0 && device_info.unique_id[1] == 0 &&
                       device_info.unique_id[2] == 0 && device_info.unique_id[3] == 0 &&
@@ -467,7 +461,6 @@ void app_main(void)
     context.rx_queue = xQueueCreate(RX_QUEUE_LEN, sizeof(rx_frame_t));
     ESP_ERROR_CHECK(context.rx_queue == NULL ? ESP_ERR_NO_MEM : ESP_OK);
     ESP_ERROR_CHECK(twai_new_node_onchip(&node_config, &node));
-    config.send_context = node;
     ESP_ERROR_CHECK(twai_node_register_event_callbacks(node, &callbacks, &context));
     ESP_ERROR_CHECK(twai_node_enable(node));
 

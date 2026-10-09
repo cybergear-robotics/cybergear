@@ -102,7 +102,7 @@ typedef struct
 
 /**
  * @brief Transmits one extended CAN frame.
- * @param context User context from cybergear_config_t::send_context.
+ * @param context User-defined transport context.
  * @param identifier Extended CAN identifier.
  * @param data Frame payload that must be copied or sent before returning.
  * @param data_length Frame payload length in bytes.
@@ -111,24 +111,13 @@ typedef struct
  */
 typedef esp_err_t (*cybergear_send_fn_t)(void *context, uint32_t identifier, const uint8_t *data, size_t data_length);
 
-/** @brief Driver configuration supplied during initialization. */
+/** @brief Driver state for one CyberGear motor instance. */
 typedef struct
 {
     cybergear_send_fn_t send;
     void *send_context;
-    cybergear_mode_e mode;
     uint8_t master_can_id;
     uint8_t can_id;
-    float speed_limit;
-    float current_limit;
-    float torque_limit;
-    bool enable_on_init;
-} cybergear_config_t;
-
-/** @brief Driver state for one CyberGear motor instance. */
-typedef struct
-{
-    cybergear_config_t *config;
     cybergear_params_t params;    
     cybergear_status_t status;
     cybergear_device_info_t device_info;
@@ -137,40 +126,44 @@ typedef struct
 
 
 /**
- * @brief Initializes a motor instance and applies configured limits.
+ * @brief Initializes a motor instance without sending motor commands.
  * @param motor Motor instance to initialize.
- * @param config Transport and motor configuration that must remain valid while used.
+ * @param send Function used to transmit extended CAN frames.
+ * @param send_context User-defined context passed to send.
+ * @param master_can_id CAN ID of the controlling device.
+ * @param can_id Current CAN ID of the motor.
  * @return ESP_OK on success.
- * @return ESP_ERR_INVALID_ARG if motor or config is null.
- * @return ESP_ERR_INVALID_STATE if config->send is null.
- * @return Other error returned by config->send.
+ * @return ESP_ERR_INVALID_ARG if motor is null.
+ * @return ESP_ERR_INVALID_STATE if send is null.
  */
-esp_err_t cybergear_init(cybergear_motor_t *motor, cybergear_config_t *config);
+esp_err_t cybergear_init(cybergear_motor_t *motor, cybergear_send_fn_t send, void *send_context,
+                         uint8_t master_can_id, uint8_t can_id);
 
 /**
  * @brief Enables motor output.
  * @param motor Motor instance to enable.
  * @return ESP_OK on success.
- * @return ESP_ERR_INVALID_ARG if motor or motor->config is null.
-  * @return Other error returned by motor->config->send.
+ * @return ESP_ERR_INVALID_ARG if motor is null.
+ * @return ESP_ERR_INVALID_STATE if motor->send is null.
+ * @return Other error returned by motor->send.
  */
 esp_err_t cybergear_enable(cybergear_motor_t *motor);
 /**
  * @brief Stops the motor without clearing active motor faults.
  * @param motor Motor instance to stop.
  * @return ESP_OK on success.
- * @return ESP_ERR_INVALID_ARG if motor or motor->config is null.
- * @return ESP_ERR_INVALID_STATE if motor->config->send is null.
- * @return Other error returned by motor->config->send.
+ * @return ESP_ERR_INVALID_ARG if motor is null.
+ * @return ESP_ERR_INVALID_STATE if motor->send is null.
+ * @return Other error returned by motor->send.
  */
 esp_err_t cybergear_stop(cybergear_motor_t *motor);
 /**
  * @brief Stops the motor and clears active motor faults.
  * @param motor Motor instance to stop.
  * @return ESP_OK on success.
- * @return ESP_ERR_INVALID_ARG if motor or motor->config is null.
- * @return ESP_ERR_INVALID_STATE if motor->config->send is null.
- * @return Other error returned by motor->config->send.
+ * @return ESP_ERR_INVALID_ARG if motor is null.
+ * @return ESP_ERR_INVALID_STATE if motor->send is null.
+ * @return Other error returned by motor->send.
  */
 esp_err_t cybergear_stop_and_clear_faults(cybergear_motor_t *motor);
 /**
@@ -178,9 +171,9 @@ esp_err_t cybergear_stop_and_clear_faults(cybergear_motor_t *motor);
  * @param motor Motor instance to configure.
  * @param mode Requested motor control mode.
  * @return ESP_OK on success.
- * @return ESP_ERR_INVALID_ARG if motor or motor->config is null.
- * @return ESP_ERR_INVALID_STATE if motor->config->send is null.
- * @return Other error returned by motor->config->send.
+ * @return ESP_ERR_INVALID_ARG if motor is null.
+ * @return ESP_ERR_INVALID_STATE if motor->send is null.
+ * @return Other error returned by motor->send.
  */
 esp_err_t cybergear_set_mode(cybergear_motor_t *motor, cybergear_mode_e mode);
 
@@ -189,9 +182,9 @@ esp_err_t cybergear_set_mode(cybergear_motor_t *motor, cybergear_mode_e mode);
  * @param motor Motor instance to query.
  * @param index RAM parameter address.
  * @return ESP_OK on success.
- * @return ESP_ERR_INVALID_ARG if motor or motor->config is null.
- * @return ESP_ERR_INVALID_STATE if motor->config->send is null.
- * @return Other error returned by motor->config->send.
+ * @return ESP_ERR_INVALID_ARG if motor is null.
+ * @return ESP_ERR_INVALID_STATE if motor->send is null.
+ * @return Other error returned by motor->send.
  */
 esp_err_t cybergear_get_param(cybergear_motor_t *motor, uint16_t index);
 
@@ -200,18 +193,18 @@ esp_err_t cybergear_get_param(cybergear_motor_t *motor, uint16_t index);
  * @param motor Motor instance to readdress.
  * @param can_id New motor CAN ID.
  * @return ESP_OK on success.
- * @return ESP_ERR_INVALID_ARG if motor or motor->config is null.
- * @return ESP_ERR_INVALID_STATE if motor->config->send is null.
- * @return Other error returned by motor->config->send.
+ * @return ESP_ERR_INVALID_ARG if motor is null.
+ * @return ESP_ERR_INVALID_STATE if motor->send is null.
+ * @return Other error returned by motor->send.
  */
 esp_err_t cybergear_set_motor_can_id(cybergear_motor_t *motor, uint8_t can_id);
 /**
  * @brief Sets the current mechanical position as zero.
  * @param motor Motor instance to calibrate.
  * @return ESP_OK on success.
- * @return ESP_ERR_INVALID_ARG if motor or motor->config is null.
- * @return ESP_ERR_INVALID_STATE if motor->config->send is null.
- * @return Other error returned by motor->config->send.
+ * @return ESP_ERR_INVALID_ARG if motor is null.
+ * @return ESP_ERR_INVALID_STATE if motor->send is null.
+ * @return Other error returned by motor->send.
  */
 esp_err_t cybergear_set_mech_position_to_zero(cybergear_motor_t *motor);
 
@@ -219,9 +212,9 @@ esp_err_t cybergear_set_mech_position_to_zero(cybergear_motor_t *motor);
  * @brief Requests a status feedback frame.
  * @param motor Motor instance to query.
  * @return ESP_OK on success.
- * @return ESP_ERR_INVALID_ARG if motor or motor->config is null.
- * @return ESP_ERR_INVALID_STATE if motor->config->send is null.
- * @return Other error returned by motor->config->send.
+ * @return ESP_ERR_INVALID_ARG if motor is null.
+ * @return ESP_ERR_INVALID_STATE if motor->send is null.
+ * @return Other error returned by motor->send.
  */
 esp_err_t cybergear_request_status(cybergear_motor_t *motor);
 /**
@@ -229,9 +222,9 @@ esp_err_t cybergear_request_status(cybergear_motor_t *motor);
  * @param motor Motor instance to update.
  * @param message Received CAN frame.
  * @return ESP_OK if the frame was decoded.
- * @return ESP_ERR_INVALID_ARG if motor, motor->config, message, or message->data is null.
+ * @return ESP_ERR_INVALID_ARG if motor, message, or message->data is null.
  * @return ESP_ERR_INVALID_SIZE if the frame length is not eight bytes.
- * @return ESP_ERR_NOT_FOUND if the frame motor ID does not match motor->config->can_id.
+ * @return ESP_ERR_NOT_FOUND if the frame motor ID does not match motor->can_id.
  * @return ESP_ERR_INVALID_RESPONSE if the frame contains an unsupported packet or value.
  */
 esp_err_t cybergear_process_message(cybergear_motor_t *motor, const cybergear_message_t *message);
@@ -241,9 +234,9 @@ esp_err_t cybergear_process_message(cybergear_motor_t *motor, const cybergear_me
  * @param motor Motor instance to configure.
  * @param speed Maximum speed in rad/s.
  * @return ESP_OK on success.
- * @return ESP_ERR_INVALID_ARG if motor or motor->config is null.
- * @return ESP_ERR_INVALID_STATE if motor->config->send is null.
- * @return Other error returned by motor->config->send.
+ * @return ESP_ERR_INVALID_ARG if motor is null.
+ * @return ESP_ERR_INVALID_STATE if motor->send is null.
+ * @return Other error returned by motor->send.
  */
 esp_err_t cybergear_set_limit_speed(cybergear_motor_t *motor, float speed);
 /**
@@ -251,9 +244,9 @@ esp_err_t cybergear_set_limit_speed(cybergear_motor_t *motor, float speed);
  * @param motor Motor instance to configure.
  * @param current Maximum current in A.
  * @return ESP_OK on success.
- * @return ESP_ERR_INVALID_ARG if motor or motor->config is null.
- * @return ESP_ERR_INVALID_STATE if motor->config->send is null.
- * @return Other error returned by motor->config->send.
+ * @return ESP_ERR_INVALID_ARG if motor is null.
+ * @return ESP_ERR_INVALID_STATE if motor->send is null.
+ * @return Other error returned by motor->send.
  */
 esp_err_t cybergear_set_limit_current(cybergear_motor_t *motor, float current);
 /**
@@ -261,9 +254,9 @@ esp_err_t cybergear_set_limit_current(cybergear_motor_t *motor, float current);
  * @param motor Motor instance to configure.
  * @param torque Maximum torque in Nm.
  * @return ESP_OK on success.
- * @return ESP_ERR_INVALID_ARG if motor or motor->config is null.
- * @return ESP_ERR_INVALID_STATE if motor->config->send is null.
- * @return Other error returned by motor->config->send.
+ * @return ESP_ERR_INVALID_ARG if motor is null.
+ * @return ESP_ERR_INVALID_STATE if motor->send is null.
+ * @return Other error returned by motor->send.
  */
 esp_err_t cybergear_set_limit_torque(cybergear_motor_t *motor, float torque);
 
@@ -272,9 +265,9 @@ esp_err_t cybergear_set_limit_torque(cybergear_motor_t *motor, float torque);
  * @param motor Motor instance to command.
  * @param cmd Motion targets and gains.
  * @return ESP_OK on success.
- * @return ESP_ERR_INVALID_ARG if motor, motor->config, or cmd is null.
- * @return ESP_ERR_INVALID_STATE if motor->config->send is null.
- * @return Other error returned by motor->config->send.
+ * @return ESP_ERR_INVALID_ARG if motor or cmd is null.
+ * @return ESP_ERR_INVALID_STATE if motor->send is null.
+ * @return Other error returned by motor->send.
  */
 esp_err_t cybergear_set_motion_cmd(cybergear_motor_t *motor, cybergear_motion_cmd_t *cmd);
 
@@ -283,9 +276,9 @@ esp_err_t cybergear_set_motion_cmd(cybergear_motor_t *motor, cybergear_motion_cm
  * @param motor Motor instance to configure.
  * @param kp Proportional gain.
  * @return ESP_OK on success.
- * @return ESP_ERR_INVALID_ARG if motor or motor->config is null.
- * @return ESP_ERR_INVALID_STATE if motor->config->send is null.
- * @return Other error returned by motor->config->send.
+ * @return ESP_ERR_INVALID_ARG if motor is null.
+ * @return ESP_ERR_INVALID_STATE if motor->send is null.
+ * @return Other error returned by motor->send.
  */
 esp_err_t cybergear_set_current_kp(cybergear_motor_t *motor, float kp);
 /**
@@ -293,9 +286,9 @@ esp_err_t cybergear_set_current_kp(cybergear_motor_t *motor, float kp);
  * @param motor Motor instance to configure.
  * @param ki Integral gain.
  * @return ESP_OK on success.
- * @return ESP_ERR_INVALID_ARG if motor or motor->config is null.
- * @return ESP_ERR_INVALID_STATE if motor->config->send is null.
- * @return Other error returned by motor->config->send.
+ * @return ESP_ERR_INVALID_ARG if motor is null.
+ * @return ESP_ERR_INVALID_STATE if motor->send is null.
+ * @return Other error returned by motor->send.
  */
 esp_err_t cybergear_set_current_ki(cybergear_motor_t *motor, float ki);
 /**
@@ -303,9 +296,9 @@ esp_err_t cybergear_set_current_ki(cybergear_motor_t *motor, float ki);
  * @param motor Motor instance to configure.
  * @param gain Filter gain.
  * @return ESP_OK on success.
- * @return ESP_ERR_INVALID_ARG if motor or motor->config is null.
- * @return ESP_ERR_INVALID_STATE if motor->config->send is null.
- * @return Other error returned by motor->config->send.
+ * @return ESP_ERR_INVALID_ARG if motor is null.
+ * @return ESP_ERR_INVALID_STATE if motor->send is null.
+ * @return Other error returned by motor->send.
  */
 esp_err_t cybergear_set_current_filter_gain(cybergear_motor_t *motor, float gain);
 /**
@@ -313,9 +306,9 @@ esp_err_t cybergear_set_current_filter_gain(cybergear_motor_t *motor, float gain
  * @param motor Motor instance to command.
  * @param current Current target in A.
  * @return ESP_OK on success.
- * @return ESP_ERR_INVALID_ARG if motor or motor->config is null.
- * @return ESP_ERR_INVALID_STATE if motor->config->send is null.
- * @return Other error returned by motor->config->send.
+ * @return ESP_ERR_INVALID_ARG if motor is null.
+ * @return ESP_ERR_INVALID_STATE if motor->send is null.
+ * @return Other error returned by motor->send.
  */
 esp_err_t cybergear_set_current(cybergear_motor_t *motor, float current);
 
@@ -324,9 +317,9 @@ esp_err_t cybergear_set_current(cybergear_motor_t *motor, float current);
  * @param motor Motor instance to configure.
  * @param kp Proportional gain.
  * @return ESP_OK on success.
- * @return ESP_ERR_INVALID_ARG if motor or motor->config is null.
- * @return ESP_ERR_INVALID_STATE if motor->config->send is null.
- * @return Other error returned by motor->config->send.
+ * @return ESP_ERR_INVALID_ARG if motor is null.
+ * @return ESP_ERR_INVALID_STATE if motor->send is null.
+ * @return Other error returned by motor->send.
  */
 esp_err_t cybergear_set_position_kp(cybergear_motor_t *motor, float kp);
 /**
@@ -334,9 +327,9 @@ esp_err_t cybergear_set_position_kp(cybergear_motor_t *motor, float kp);
  * @param motor Motor instance to command.
  * @param position Position target in rad.
  * @return ESP_OK on success.
- * @return ESP_ERR_INVALID_ARG if motor or motor->config is null.
- * @return ESP_ERR_INVALID_STATE if motor->config->send is null.
- * @return Other error returned by motor->config->send.
+ * @return ESP_ERR_INVALID_ARG if motor is null.
+ * @return ESP_ERR_INVALID_STATE if motor->send is null.
+ * @return Other error returned by motor->send.
  */
 esp_err_t cybergear_set_position(cybergear_motor_t *motor, float position);
 
@@ -345,9 +338,9 @@ esp_err_t cybergear_set_position(cybergear_motor_t *motor, float position);
  * @param motor Motor instance to configure.
  * @param kp Proportional gain.
  * @return ESP_OK on success.
- * @return ESP_ERR_INVALID_ARG if motor or motor->config is null.
- * @return ESP_ERR_INVALID_STATE if motor->config->send is null.
- * @return Other error returned by motor->config->send.
+ * @return ESP_ERR_INVALID_ARG if motor is null.
+ * @return ESP_ERR_INVALID_STATE if motor->send is null.
+ * @return Other error returned by motor->send.
  */
 esp_err_t cybergear_set_speed_kp(cybergear_motor_t *motor, float kp);
 /**
@@ -355,9 +348,9 @@ esp_err_t cybergear_set_speed_kp(cybergear_motor_t *motor, float kp);
  * @param motor Motor instance to configure.
  * @param ki Integral gain.
  * @return ESP_OK on success.
- * @return ESP_ERR_INVALID_ARG if motor or motor->config is null.
- * @return ESP_ERR_INVALID_STATE if motor->config->send is null.
- * @return Other error returned by motor->config->send.
+ * @return ESP_ERR_INVALID_ARG if motor is null.
+ * @return ESP_ERR_INVALID_STATE if motor->send is null.
+ * @return Other error returned by motor->send.
  */
 esp_err_t cybergear_set_speed_ki(cybergear_motor_t *motor, float ki);
 /**
@@ -365,9 +358,9 @@ esp_err_t cybergear_set_speed_ki(cybergear_motor_t *motor, float ki);
  * @param motor Motor instance to command.
  * @param speed Speed target in rad/s.
  * @return ESP_OK on success.
- * @return ESP_ERR_INVALID_ARG if motor or motor->config is null.
- * @return ESP_ERR_INVALID_STATE if motor->config->send is null.
- * @return Other error returned by motor->config->send.
+ * @return ESP_ERR_INVALID_ARG if motor is null.
+ * @return ESP_ERR_INVALID_STATE if motor->send is null.
+ * @return Other error returned by motor->send.
  */
 esp_err_t cybergear_set_speed(cybergear_motor_t *motor, float speed);
 

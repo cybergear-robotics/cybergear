@@ -3,8 +3,6 @@
 #include "esp_err.h"
 #include "cybergear.h"
 
-#define RETURN_ON_ERROR(x) {esp_err_t rc = (x); if (rc != ESP_OK) { return rc; }};
-
 esp_err_t _send_can_package(cybergear_motor_t *motor, uint8_t cmd_id, uint8_t len, uint8_t* data);
 esp_err_t _send_can_option_package(cybergear_motor_t *motor, uint8_t cmd_id, uint16_t option, uint8_t len, uint8_t* data);
 esp_err_t _send_can_float_package(cybergear_motor_t *motor, uint16_t addr, float value, float min, float max);
@@ -17,32 +15,23 @@ esp_err_t _process_param_message(cybergear_motor_t *motor, const cybergear_messa
 
 static bool _is_valid_motor(const cybergear_motor_t *motor)
 {
-    return motor != NULL && motor->config != NULL;
+    return motor != NULL;
 }
 
-esp_err_t cybergear_init(cybergear_motor_t *motor, cybergear_config_t *config) {
-    if (motor == NULL || config == NULL) {
+esp_err_t cybergear_init(cybergear_motor_t *motor, cybergear_send_fn_t send, void *send_context,
+                         uint8_t master_can_id, uint8_t can_id) {
+    if (motor == NULL) {
         return ESP_ERR_INVALID_ARG;
     }
-    if (config->send == NULL) {
+    if (send == NULL) {
         return ESP_ERR_INVALID_STATE;
     }
 
-    memset(&motor->params, 0, sizeof(motor->params));
-    memset(&motor->status, 0, sizeof(motor->status));
-    memset(&motor->device_info, 0, sizeof(motor->device_info));
-    motor->config = config;
-    memset(&motor->diagnostics, 0, sizeof(motor->diagnostics));
-    
-    RETURN_ON_ERROR(cybergear_stop(motor));
-    RETURN_ON_ERROR(cybergear_set_mode(motor, config->mode));
-    RETURN_ON_ERROR(cybergear_set_limit_speed(motor, config->speed_limit));
-    RETURN_ON_ERROR(cybergear_set_limit_current(motor, config->current_limit));
-    RETURN_ON_ERROR(cybergear_set_limit_torque(motor, config->torque_limit));
-    if(config->enable_on_init)
-    {
-        RETURN_ON_ERROR(cybergear_enable(motor));
-    }
+    memset(motor, 0, sizeof(*motor));
+    motor->send = send;
+    motor->send_context = send_context;
+    motor->master_can_id = master_can_id;
+    motor->can_id = can_id;
     return ESP_OK;
 }
 
@@ -93,11 +82,11 @@ esp_err_t cybergear_set_motor_can_id(cybergear_motor_t *motor, uint8_t can_id)
     }
 
     uint8_t data[8] = {0x00};
-    uint16_t option = can_id << 8 | motor->config->master_can_id;
+    uint16_t option = can_id << 8 | motor->master_can_id;
     esp_err_t err = _send_can_option_package(motor, CMD_SET_CAN_ID, option, 8, data);
     if(err == ESP_OK)
     {
-        motor->config->can_id = can_id;
+        motor->can_id = can_id;
     }
     return err;    
 }
@@ -126,7 +115,7 @@ esp_err_t cybergear_process_message(cybergear_motor_t *motor, const cybergear_me
     }
     uint8_t can_id = (message->identifier & 0xFF00) >> 8;
     uint8_t packet_type = (message->identifier & 0x3F000000) >> 24;
-    if(can_id != motor->config->can_id)
+    if(can_id != motor->can_id)
     {
         return ESP_ERR_NOT_FOUND;
     }
@@ -282,7 +271,7 @@ bool cybergear_has_warnings(cybergear_motor_t *motor)
 
 esp_err_t _send_can_package(cybergear_motor_t *motor, uint8_t cmd_id, uint8_t len, uint8_t* data)
 {
-    return _send_can_option_package(motor, cmd_id, motor->config->master_can_id, len, data);
+    return _send_can_option_package(motor, cmd_id, motor->master_can_id, len, data);
 }
 
 esp_err_t _send_can_option_package(cybergear_motor_t *motor, uint8_t cmd_id, uint16_t option, uint8_t len, uint8_t* data)
@@ -291,13 +280,11 @@ esp_err_t _send_can_option_package(cybergear_motor_t *motor, uint8_t cmd_id, uin
         return ESP_ERR_INVALID_ARG;
     }
 
-    uint32_t id = cmd_id << 24 | option << 8 | motor->config->can_id;
-    esp_err_t err;
-    if (motor->config->send == NULL) {
+    uint32_t id = cmd_id << 24 | option << 8 | motor->can_id;
+    if (motor->send == NULL) {
         return ESP_ERR_INVALID_STATE;
     }
-    err = motor->config->send(motor->config->send_context, id, data, len);
-    return err;
+    return motor->send(motor->send_context, id, data, len);
 }
 
 esp_err_t _send_can_float_package(cybergear_motor_t *motor, uint16_t addr, float value, float min, float max)

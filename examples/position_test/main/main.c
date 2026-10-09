@@ -67,16 +67,6 @@ void app_main(void)
 {
 	/* initialize cybergear motor */
 	cybergear_motor_t cybergear_motor;
-	cybergear_config_t cybergear_config = {
-		.send = cybergear_twai_send,
-		.mode = CYBERGEAR_MODE_POSITION,
-		.master_can_id = CONFIG_CYBERGEAR_MASTER_CAN_ID,
-		.can_id = CONFIG_CYBERGEAR_MOTOR_CAN_ID,
-		.speed_limit = 3.0f,
-		.current_limit = 5.0f,
-		.torque_limit = 10.0f,
-		.enable_on_init = true,
-	};
 	twai_onchip_node_config_t node_config = {
 		.io_cfg.tx = (gpio_num_t)CONFIG_CYBERGEAR_CAN_TX,
 		.io_cfg.rx = (gpio_num_t)CONFIG_CYBERGEAR_CAN_RX,
@@ -94,12 +84,22 @@ void app_main(void)
 	cybergear_rx_queue = xQueueCreate(10, sizeof(cybergear_rx_frame_t));
 	ESP_ERROR_CHECK(cybergear_rx_queue == NULL ? ESP_ERR_NO_MEM : ESP_OK);
 	ESP_ERROR_CHECK(twai_new_node_onchip(&node_config, &node));
-	cybergear_config.send_context = node;
 	ESP_ERROR_CHECK(twai_node_register_event_callbacks(node, &callbacks, NULL));
 	ESP_ERROR_CHECK(twai_node_enable(node));
-	esp_err_t err = cybergear_init(&cybergear_motor, &cybergear_config);
+	esp_err_t err = cybergear_init(&cybergear_motor, cybergear_twai_send, node,
+	                              CONFIG_CYBERGEAR_MASTER_CAN_ID, CONFIG_CYBERGEAR_MOTOR_CAN_ID);
 	if (err != ESP_OK) {
 		ESP_LOGE(TAG, "CyberGear initialization failed: %s. Check CAN wiring, termination, motor power, and CAN IDs.", esp_err_to_name(err));
+		return;
+	}
+	err = cybergear_stop(&cybergear_motor);
+	err = err == ESP_OK ? cybergear_set_mode(&cybergear_motor, CYBERGEAR_MODE_POSITION) : err;
+	err = err == ESP_OK ? cybergear_set_limit_speed(&cybergear_motor, 3.0f) : err;
+	err = err == ESP_OK ? cybergear_set_limit_current(&cybergear_motor, 5.0f) : err;
+	err = err == ESP_OK ? cybergear_set_limit_torque(&cybergear_motor, 10.0f) : err;
+	err = err == ESP_OK ? cybergear_enable(&cybergear_motor) : err;
+	if (err != ESP_OK) {
+		ESP_LOGE(TAG, "CyberGear setup failed: %s", esp_err_to_name(err));
 		return;
 	}
 	err = cybergear_set_position(&cybergear_motor, 10.0f);

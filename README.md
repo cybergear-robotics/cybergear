@@ -13,9 +13,9 @@ communicate with Xiaomi CyberGear motors. It is based on the library
 [Xiaomi_CyberGear_Arduino](https://github.com/DanielKalicki/Xiaomi_CyberGear_Arduino)
 and has been ported to ESP-IDF.
 
-The component is independent of the CAN driver. Configure `cybergear_config_t::send`
-with an adapter that sends one extended CAN frame; `send_context` is passed through to
-that adapter. Incoming frames are routed by the application and passed to
+The component is independent of the CAN driver. Pass `cybergear_init()` an adapter
+that sends one extended CAN frame and its user context. Incoming frames are routed by
+the application and passed to
 `cybergear_process_message()` as `cybergear_message_t`.
 
 ## Safety
